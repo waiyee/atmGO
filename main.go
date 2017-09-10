@@ -8,7 +8,6 @@ import (
 	"log"
 	"time"
 //	"sync"
-	"sync"
 )
 
 const (
@@ -31,7 +30,7 @@ func getMarkets()(markets []bittrex.Market){
 
 	c := session.DB("v2").C("Markets")
 
-		err = c.Find(bson.M{"basecurrency": "BTC"}).All(&markets)
+		err = c.Find(bson.M{ "$or": []bson.M{ bson.M{"marketname":"BTC-LTC"}, bson.M{"marketname": "BTC-GLD"} } }).All(&markets)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -51,7 +50,7 @@ func main() {
 	markets, err := bittrex.GetMarkets()
 	*/
 	// Get markets
-	fmt.Println(time.Now())
+/*	fmt.Println(time.Now())
 	markets := getMarkets()
 	var wg sync.WaitGroup
 	wg.Add(len(markets))
@@ -60,15 +59,31 @@ func main() {
 			go func(i int) {
 				defer wg.Done()
 				fmt.Println(i, markets[i].MarketName, time.Now(), " START")
-				time.Sleep(10000 * time.Millisecond)
-				ticker, err := bittrex.GetTicker(markets[i].MarketName)
+				//time.Sleep(10000 * time.Millisecond)
+				ticker, err := bittrex.GetMarketSummary(markets[i].MarketName)
 				fmt.Println(i, markets[i].MarketName, time.Now(), ticker, err, " END")
 
 			}(i)
 
 		}
 
-	wg.Wait()
+	wg.Wait()*/
+
+
+	fmt.Println(time.Now())
+	balances, err := bittrex.GetTicker("BTC-LTC")
+	fmt.Println(err, balances)
+	fmt.Println(time.Now())
+	//markets := getMarkets()
+
+	for i := 0; i < 20 ; i++ {
+		fmt.Println(i, "BTC-LTC", time.Now(), " START")
+		ticker, err := bittrex.GetMarketSummary("BTC-LTC")
+		fmt.Println(i,"BTC-LTC", time.Now(), ticker, err, " END")
+		time.Sleep(time.Second)
+	}
+
+
 	// Get Ticker (BTC-VTC)
 	/*
 		ticker, err := bittrex.GetTicker("BTC-DRK")
