@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"atm/bittrex"
 	"gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
+//	"gopkg.in/mgo.v2/bson"
 	"log"
 	"time"
 //	"sync"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 const (
@@ -15,8 +18,9 @@ const (
 	API_SECRET = "311cf541a233410c8f8d84d1a0e03d96"
 )
 
-
-
+// Receives the change in the number of goroutines
+var goroutineDelta = make(chan int)
+/*
 func getMarkets()(markets []bittrex.Market){
 
 	session, err := mgo.Dial("localhost:27017")
@@ -37,18 +41,86 @@ func getMarkets()(markets []bittrex.Market){
 
 
 	return
+} */
+
+func periodicGetSummaries(t time.Time){
+
+	b := bittrex.New(API_KEY, API_SECRET)
+
+	marketSummaries, err := b.GetMarketSummaries()
+
+	session, err := mgo.Dial("localhost:27017")
+	if err != nil {
+		panic(err)
+	}
+	defer session.Close()
+
+	// Optional. Switch the session to a monotonic behavior.
+	session.SetMode(mgo.Monotonic, true)
+
+	c := session.DB("v2").C("MarketsSummaries")
+	k := time.Now()
+	fmt.Println("Got Market Summaries preparing insert ", k)
+	for _,v:= range marketSummaries {
+		v.DBTime = k
+		err = c.Insert(&v)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 }
+
+// Conceptual code
+func loopGetSummary() {
+	fmt.Println("Inside Forver")
+	/** Keep calling periodicGetSummaries every second in async mode **/
+	for t := range time.NewTicker(time.Millisecond * 1000 ).C {
+		go periodicGetSummaries(t)
+	}
+}
+
+
+
 
 func main() {
 	// Bittrex client
 	bittrex := bittrex.New(API_KEY, API_SECRET)
 
+	// Buffer for calling bittrex API
+	balances, err := bittrex.GetTicker("BTC-LTC")
+	fmt.Println(err, balances)
+
+	/* Code for listen Ctrl + C to stop the bot*/
+	c := make(chan os.Signal, 2)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		os.Exit(1)
+	}()
+	/* Code for listen Ctrl + C to stop the bot*/
+
+	/* async call a job to get summaries */
+	go loopGetSummary()
+
+	fmt.Println("Just a test it is running without waiting")
+
+
+
+
+
+	/* a code for END to wait running program */
+	for range goroutineDelta {
+	}
+	/* a code for END to wait running program */
+
 	// Get Candle ( OHLCV )
 
-	/*	markets, err := bittrex.GetHisCandles("BTC-LTC", "hour")
+	/*
+	markets, err := bittrex.GetHisCandles("BTC-LTC", "hour")
 		fmt.Println(markets, err)
 	markets, err := bittrex.GetMarkets()
 	*/
+
 	// Get markets
 /*	fmt.Println(time.Now())
 	markets := getMarkets()
@@ -70,19 +142,42 @@ func main() {
 	wg.Wait()*/
 
 
+	//	go forever()
+
+/*
+	numGoroutines := 0
+
+	for diff := range goroutineDelta {
+		numGoroutines += diff
+		if numGoroutines == 0 { fmt.Println("test")}
+	}
+
+
+*/
+
+
+/*
 	fmt.Println(time.Now())
 	balances, err := bittrex.GetTicker("BTC-LTC")
 	fmt.Println(err, balances)
 	fmt.Println(time.Now())
 	//markets := getMarkets()
+	fmt.Println( "BTC-LTC", time.Now(), " START")
+	ticker, err := bittrex.GetMarketSummary("BTC-LTC")
+	fmt.Println("BTC-LTC", time.Now(), ticker, err, " END")
+	fmt.Println("get market summaries", time.Now(), ticker, err, " START")
 
-	for i := 0; i < 20 ; i++ {
+	marketSummaries, err := bittrex.GetMarketSummaries()
+	//fmt.Println(err, marketSummaries)
+	fmt.Println("get market summaries", time.Now(), marketSummaries, err, " END")
+
+	/*for i := 0; i < 20 ; i++ {
 		fmt.Println(i, "BTC-LTC", time.Now(), " START")
 		ticker, err := bittrex.GetMarketSummary("BTC-LTC")
 		fmt.Println(i,"BTC-LTC", time.Now(), ticker, err, " END")
 		time.Sleep(time.Second)
 	}
-
+*/
 
 	// Get Ticker (BTC-VTC)
 	/*
