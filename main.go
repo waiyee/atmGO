@@ -9,13 +9,14 @@ import (
 	"os/signal"
 	//"syscall"
 	//"sync"
-	"gopkg.in/mgo.v2/bson"
+	//"gopkg.in/mgo.v2/bson"
 //	"atm/db"
 
 	"syscall"
 	"sync"
 	"atm/db"
-	"gopkg.in/mgo.v2"
+//	"gopkg.in/mgo.v2"
+
 )
 
 type OrderBookStream struct {
@@ -50,14 +51,16 @@ var JobChannel = make(chan time.Time)
 
 func getMarkets()(markets []topOrderMarkets){
 
-	/*markets = []topOrderMarkets{topOrderMarkets{"BTC-ETH", 0},
+	markets = []topOrderMarkets{topOrderMarkets{"BTC-ETH", 0},
 		topOrderMarkets{"BTC-NEO", 0},
 		topOrderMarkets{"BTC-OMG", 0},
 		topOrderMarkets{"BTC-ETC", 0},
 		topOrderMarkets{"BTC-TRIG", 0},
 		topOrderMarkets{"BTC-QTUM", 0},
 		topOrderMarkets{"BTC-OK", 0},
-		}*/
+		topOrderMarkets{"BTC-LTC", 0},
+		topOrderMarkets{"BTC-ZEN", 0},
+		}
 
 /*	session, err := mgo.Dial("localhost:27017")
 	if err != nil {
@@ -68,9 +71,9 @@ func getMarkets()(markets []topOrderMarkets){
 	// Optional. Switch the session to a monotonic behavior.
 	session.SetMode(mgo.Monotonic, true)
 */
-	session := mydb.Session.Clone()
+/*	session := mydb.Session.Clone()
 	defer session.Close()
-	c := session.DB("v2").C("MarketsSummaries").With(session)
+	c := session.DB("v2").C("MarketsLatest").With(session)
 	query := []bson.M{
 		{
 			"$match": bson.M{
@@ -108,7 +111,7 @@ func getMarkets()(markets []topOrderMarkets){
 		fmt.Println("getMarkets", time.Now(), err)
 	}
 
-
+	c.DropCollection()*/
 	return
 }
 
@@ -126,17 +129,22 @@ func periodicGetSummaries(t time.Time){
 
 	// Optional. Switch the session to a monotonic behavior.
 	session.SetMode(mgo.Monotonic, true)*/
-	session := mydb.Session.Clone()
+	/*session := mydb.Session.Clone()
 	defer session.Close()
 	c := session.DB("v2").C("MarketsSummaries").With(session)
+	d := session.DB("v2").C("MarketsLatest").With(session)*/
 	k := time.Now()
 	//fmt.Println("Got Market Summaries preparing insert : ", k)
 	for _,v:= range marketSummaries {
 		v.DBTime = k
-		err = c.Insert(&v)
+		//err = c.Insert(&v)
+		//err2 := d.Insert(&v)
 		if err != nil {
 			fmt.Println("periodicGetSummaries", time.Now(), err)
 		}
+		/*if err2!= nil {
+			fmt.Println("periodicGetSummaries2", time.Now(), err2)
+		}*/
 	}
 }
 
@@ -208,7 +216,7 @@ func periodicGetOrderBook(t time.Time)  {
 			//defer session.Close()
 			// Optional. Switch the session to a monotonic behavior.
 			//session.SetMode(mgo.Monotonic, true)
-				session := mydb.Session.Clone()
+				/*session := mydb.Session.Clone()
 				defer session.Close()
 				c := session.DB("v2").C("OrderBookStream").With(session)
 
@@ -218,7 +226,7 @@ func periodicGetOrderBook(t time.Time)  {
 				if err != nil {
 					fmt.Println("periodicGetOrderBook - " , time.Now(), err)
 				}
-
+*/
 				//fmt.Println(i, " - ", time.Now(), markets[i].MarketName, " - Order Book Stream Finish Calculation")
 
 			}
