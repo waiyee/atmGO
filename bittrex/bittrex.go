@@ -157,17 +157,18 @@ func (b *Bittrex) GetMarketSummary(market string) (marketSummary []MarketSummary
 // market: a string literal for the market (ex: BTC-LTC)
 // cat: buy, sell or both to identify the type of orderbook to return.
 // depth: how deep of an order book to retrieve. Max is 100
-func (b *Bittrex) GetOrderBook(market, cat string, depth int) (orderBook OrderBook, err error) {
+func (b *Bittrex) GetOrderBook(market, cat string/*, depth int*/) (orderBook OrderBook, err error) {
 	if cat != "buy" && cat != "sell" && cat != "both" {
 		cat = "both"
 	}
-	if depth > 100 {
+	/*if depth > 100 {
 		depth = 100
-	}
-	if depth < 1 {
+	}*/
+/*	if depth < 1 {
 		depth = 1
-	}
-	r, err := b.client.do("GET", fmt.Sprintf("public/getorderbook?market=%s&type=%s&depth=%d", strings.ToUpper(market), cat, depth), "", false)
+	}*/
+	//r, err := b.client.do("GET", fmt.Sprintf("public/getorderbook?market=%s&type=%s&depth=%d", strings.ToUpper(market), cat, depth), "", false)
+	r, err := b.client.do("GET", fmt.Sprintf("public/getorderbook?market=%s&type=%s", strings.ToUpper(market), cat), "", false)
 	if err != nil {
 		return
 	}

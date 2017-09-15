@@ -3,27 +3,63 @@ package main
 import (
 	"fmt"
 	"atm/bittrex"
-	"gopkg.in/mgo.v2"
-//	"gopkg.in/mgo.v2/bson"
-	"log"
+//	"gopkg.in/mgo.v2"
 	"time"
-//	"sync"
 	"os"
 	"os/signal"
+	//"syscall"
+	//"sync"
+	"gopkg.in/mgo.v2/bson"
+//	"atm/db"
+
 	"syscall"
+	"sync"
+	"atm/db"
+	"gopkg.in/mgo.v2"
 )
+
+type OrderBookStream struct {
+	DBtime time.Time
+	MarketName string
+	MidPrice float64
+	BidRate float64
+	AskRate float64
+	BidVol float64
+	AskVol float64
+}
+
+type topOrderMarkets struct {
+	MarketName      string    `json:"marketname" bson:"marketname"`
+	Vol      float64          `json:"vol" bson:"vol"`
+}
+
+var mydb db.Mydbset
 
 const (
 	API_KEY    = "b16a576da6ce4c98a228a9c8fb358a9d"
 	API_SECRET = "311cf541a233410c8f8d84d1a0e03d96"
+	/*	API_KEY2	="d014e31f94aa4aa7a83067b3fd332c91"
+		API_SECRET2 = "0aa12bfb90824971ab53b7d0fb7a4f79"
+		API_KEY3 = "717c3afec5104a79be6a49c1ca0a4627"
+		API_SECRET3 = "a72e4d6c645e43b6831557aa3c2533bf"*/
 )
-
+var JobChannel = make(chan time.Time)
+//var a int64
 // Receives the change in the number of goroutines
-var goroutineDelta = make(chan int)
-/*
-func getMarkets()(markets []bittrex.Market){
+//var goroutineDelta = make(chan int)
 
-	session, err := mgo.Dial("localhost:27017")
+func getMarkets()(markets []topOrderMarkets){
+
+	/*markets = []topOrderMarkets{topOrderMarkets{"BTC-ETH", 0},
+		topOrderMarkets{"BTC-NEO", 0},
+		topOrderMarkets{"BTC-OMG", 0},
+		topOrderMarkets{"BTC-ETC", 0},
+		topOrderMarkets{"BTC-TRIG", 0},
+		topOrderMarkets{"BTC-QTUM", 0},
+		topOrderMarkets{"BTC-OK", 0},
+		}*/
+
+/*	session, err := mgo.Dial("localhost:27017")
 	if err != nil {
 		panic(err)
 	}
@@ -31,17 +67,50 @@ func getMarkets()(markets []bittrex.Market){
 
 	// Optional. Switch the session to a monotonic behavior.
 	session.SetMode(mgo.Monotonic, true)
+*/
+	session := mydb.Session.Clone()
+	defer session.Close()
+	c := session.DB("v2").C("MarketsSummaries").With(session)
+	query := []bson.M{
+		{
+			"$match": bson.M{
+				"marketname" :  bson.RegEx{`^BTC-`, ""},
+			},
+		},
+		{
+			"$group" : bson.M{
+				"_id" : "$marketname",
+				"maxTime" : bson.M{"$max" : "$dbtime"},
+				"doc" : bson.M{"$last" : "$$ROOT"},
+			},
+		},
+		{
+			"$sort" : bson.M{
+				"doc.basevolume" : -1,
+			},
+		},
+		{
+			"$project" : bson.M{
+				"_id" : 0,
+				"marketname" : "$doc.marketname",
+				"vol" : "$doc.basevolume",
+			},
+		},
 
-	c := session.DB("v2").C("Markets")
+		{
+			"$limit" : 8,
+		},
+	}
 
-		err = c.Find(bson.M{ "$or": []bson.M{ bson.M{"marketname":"BTC-LTC"}, bson.M{"marketname": "BTC-GLD"} } }).All(&markets)
+	pipe := c.Pipe(query)
+	err :=pipe.All(&markets)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println("getMarkets", time.Now(), err)
 	}
 
 
 	return
-} */
+}
 
 func periodicGetSummaries(t time.Time){
 
@@ -49,67 +118,174 @@ func periodicGetSummaries(t time.Time){
 
 	marketSummaries, err := b.GetMarketSummaries()
 
-	session, err := mgo.Dial("localhost:27017")
+	/*session, err := mgo.Dial("localhost:27017")
 	if err != nil {
 		panic(err)
 	}
 	defer session.Close()
 
 	// Optional. Switch the session to a monotonic behavior.
-	session.SetMode(mgo.Monotonic, true)
-
-	c := session.DB("v2").C("MarketsSummaries")
+	session.SetMode(mgo.Monotonic, true)*/
+	session := mydb.Session.Clone()
+	defer session.Close()
+	c := session.DB("v2").C("MarketsSummaries").With(session)
 	k := time.Now()
-	fmt.Println("Got Market Summaries preparing insert ", k)
+	//fmt.Println("Got Market Summaries preparing insert : ", k)
 	for _,v:= range marketSummaries {
 		v.DBTime = k
 		err = c.Insert(&v)
 		if err != nil {
-			log.Fatal(err)
+			fmt.Println("periodicGetSummaries", time.Now(), err)
 		}
 	}
 }
 
 // Conceptual code
 func loopGetSummary() {
-	fmt.Println("Inside Forver")
 	/** Keep calling periodicGetSummaries every second in async mode **/
-	for t := range time.NewTicker(time.Millisecond * 1000 ).C {
+	for t := range time.NewTicker(time.Second ).C {
 		go periodicGetSummaries(t)
+		JobChannel <- t
 	}
 }
 
 
+func periodicGetOrderBook(t time.Time)  {
+	wg := &sync.WaitGroup{}
+	markets := getMarkets()
+
+
+	obRate := 0.125
+/*	var ak string
+	var as string
+	if a%2  == 1 {
+		ak = API_KEY
+		as = API_SECRET
+	} else{
+		ak = API_KEY2
+		as = API_SECRET2
+	}
+	a++*/
+	bittrex := bittrex.New(API_KEY, API_SECRET)
+
+	for i := 0; i < len(markets); i++ {
+		wg.Add(1)
+		go func(wg *sync.WaitGroup, i int) {
+
+			orderBook, err := bittrex.GetOrderBook(markets[i].MarketName, "both")
+			if err != nil {
+				fmt.Println("periodicGetOrderBook1 - ", time.Now(), err)
+			}else if len(orderBook.Buy) > 0 && len(orderBook.Sell) > 0 {
+				bidVol := float64(0)
+
+				midPrice := ( orderBook.Buy[0].Rate + orderBook.Sell[0].Rate) / 2.0
+
+				quBidRate := midPrice * (1 - obRate)
+				quAskRate := midPrice * (1 + obRate)
+
+				for v := 0; v < len(orderBook.Buy); v++ {
+					if orderBook.Buy[v].Rate >= quBidRate {
+						bidVol += orderBook.Buy[v].Quantity * orderBook.Buy[v].Rate
+					} else {
+						break
+					}
+				}
+
+				askVol := float64(0)
+
+				for v := 0; v < len(orderBook.Sell); v++ {
+					if orderBook.Sell[v].Rate <= quAskRate {
+						askVol += orderBook.Sell[v].Quantity * orderBook.Sell[v].Rate
+					} else {
+						break
+					}
+				}
+			//fmt.Println("Order - " ,time.Now(), markets[i].MarketName, midPrice, quBidRate, quAskRate, bidVol, askVol)
+				// 	session, err := mgo.Dial("localhost:27017")
+			// if err != nil {
+			//	panic(err)
+			//}
+			//defer session.Close()
+			// Optional. Switch the session to a monotonic behavior.
+			//session.SetMode(mgo.Monotonic, true)
+				session := mydb.Session.Clone()
+				defer session.Close()
+				c := session.DB("v2").C("OrderBookStream").With(session)
+
+
+				err = c.Insert(&OrderBookStream{time.Now(), markets[i].MarketName, midPrice, quBidRate, quAskRate, bidVol, askVol})
+
+				if err != nil {
+					fmt.Println("periodicGetOrderBook - " , time.Now(), err)
+				}
+
+				//fmt.Println(i, " - ", time.Now(), markets[i].MarketName, " - Order Book Stream Finish Calculation")
+
+			}
+			//defer wgm.Done()
+			wg.Done()
+		}(wg, i)
+
+	}
+
+	wg.Wait()
+
+
+}
+
+
+func loopGetOrderBook()  {
+/*	var wgo sync.WaitGroup
+	wgo.Add(1)*/
+	for t := range time.NewTicker(time.Second ).C {
+
+		go periodicGetOrderBook(t)
+		JobChannel <- t
+		//defer wgo.Done()
+	}
+	//wgo.Wait()
+}
+
 
 
 func main() {
+	mydb = db.NewDbSession("mongodb://localhost:27017/?authSource=v2", "v2")
+
+
 	// Bittrex client
 	bittrex := bittrex.New(API_KEY, API_SECRET)
 
 	// Buffer for calling bittrex API
 	balances, err := bittrex.GetTicker("BTC-LTC")
-	fmt.Println(err, balances)
+	fmt.Println(time.Now(),err, balances)
 
 	/* Code for listen Ctrl + C to stop the bot*/
-	c := make(chan os.Signal, 2)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	cc := make(chan os.Signal, 1)
+	signal.Notify(cc, os.Interrupt, syscall.SIGTERM)
 	go func() {
-		<-c
-		os.Exit(1)
+		for range cc {
+			mydb.Session.Close()
+			close(cc)
+			close(JobChannel)
+			os.Exit(1)
+		}
+
 	}()
 	/* Code for listen Ctrl + C to stop the bot*/
 
 	/* async call a job to get summaries */
 	go loopGetSummary()
 
-	fmt.Println("Just a test it is running without waiting")
+	go loopGetOrderBook()
 
 
+	for j:= range JobChannel{
+		fmt.Println("Worked ", j )
 
-
+	}
 
 	/* a code for END to wait running program */
-	for range goroutineDelta {
+	/*for {
 	}
 	/* a code for END to wait running program */
 
