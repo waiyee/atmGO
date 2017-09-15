@@ -3,31 +3,17 @@ package main
 import (
 	"fmt"
 	"atm/bittrex"
-//	"gopkg.in/mgo.v2"
 	"time"
 	"os"
 	"os/signal"
-	//"syscall"
-	//"sync"
-	//"gopkg.in/mgo.v2/bson"
-//	"atm/db"
-
+//	"atm/calculation"
 	"syscall"
 	"sync"
 	"atm/db"
-//	"gopkg.in/mgo.v2"
 
 )
 
-type OrderBookStream struct {
-	DBtime time.Time
-	MarketName string
-	MidPrice float64
-	BidRate float64
-	AskRate float64
-	BidVol float64
-	AskVol float64
-}
+
 
 type topOrderMarkets struct {
 	MarketName      string    `json:"marketname" bson:"marketname"`
@@ -36,14 +22,7 @@ type topOrderMarkets struct {
 
 var mydb db.Mydbset
 
-const (
-	API_KEY    = "b16a576da6ce4c98a228a9c8fb358a9d"
-	API_SECRET = "311cf541a233410c8f8d84d1a0e03d96"
-	/*	API_KEY2	="d014e31f94aa4aa7a83067b3fd332c91"
-		API_SECRET2 = "0aa12bfb90824971ab53b7d0fb7a4f79"
-		API_KEY3 = "717c3afec5104a79be6a49c1ca0a4627"
-		API_SECRET3 = "a72e4d6c645e43b6831557aa3c2533bf"*/
-)
+
 var JobChannel = make(chan time.Time)
 //var a int64
 // Receives the change in the number of goroutines
@@ -114,7 +93,7 @@ func getMarkets()(markets []topOrderMarkets){
 	c.DropCollection()*/
 	return
 }
-
+/*
 func periodicGetSummaries(t time.Time){
 
 	b := bittrex.New(API_KEY, API_SECRET)
@@ -132,7 +111,7 @@ func periodicGetSummaries(t time.Time){
 	/*session := mydb.Session.Clone()
 	defer session.Close()
 	c := session.DB("v2").C("MarketsSummaries").With(session)
-	d := session.DB("v2").C("MarketsLatest").With(session)*/
+	d := session.DB("v2").C("MarketsLatest").With(session)
 	k := time.Now()
 	//fmt.Println("Got Market Summaries preparing insert : ", k)
 	for _,v:= range marketSummaries {
@@ -144,15 +123,52 @@ func periodicGetSummaries(t time.Time){
 		}
 		/*if err2!= nil {
 			fmt.Println("periodicGetSummaries2", time.Now(), err2)
-		}*/
+		}
 	}
 }
+*/
+var thisSecondMarket map[string]bittrex.MarketSummary
+var lastSecondMarket map[string]bittrex.MarketSummary
 
-// Conceptual code
+func CompareMarkets(){
+	for _,v := range thisSecondMarket{
+		if v.BaseVolume != lastSecondMarket[v.MarketName].BaseVolume || v.Volume != lastSecondMarket[v.MarketName].Volume {
+			fmt.Println("call order book")
+		}else {
+			fmt.Println("don't call order book")
+		}
+
+	}
+	lastSecondMarket = thisSecondMarket
+}
+
+
 func loopGetSummary() {
 	/** Keep calling periodicGetSummaries every second in async mode **/
 	for t := range time.NewTicker(time.Second ).C {
-		go periodicGetSummaries(t)
+		go func() {
+			b := bittrex.New(API_KEY, API_SECRET)
+
+			markets, err := b.GetMarketSummaries()
+			if err != nil {
+				fmt.Println("periodicGetSummaries", time.Now(), err)
+			}
+
+			for _,v:= range markets {
+				thisSecondMarket[v.MarketName] = v
+			}
+
+
+			if len(lastSecondMarket) == 0 {
+				fmt.Println(1)
+				lastSecondMarket = thisSecondMarket
+			}else{
+				fmt.Println(2)
+				CompareMarkets()
+			}
+
+		}()
+
 		JobChannel <- t
 	}
 }
@@ -259,7 +275,8 @@ func loopGetOrderBook()  {
 func main() {
 	mydb = db.NewDbSession("mongodb://localhost:27017/?authSource=v2", "v2")
 
-
+	thisSecondMarket = make(map[string]bittrex.MarketSummary)
+	lastSecondMarket = make(map[string]bittrex.MarketSummary)
 	// Bittrex client
 	bittrex := bittrex.New(API_KEY, API_SECRET)
 

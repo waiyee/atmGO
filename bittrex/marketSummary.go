@@ -1,6 +1,6 @@
 package bittrex
 
-import "time"
+
 
 type MarketSummary struct {
 	MarketName     string  `json:"MarketName"`
@@ -15,5 +15,4 @@ type MarketSummary struct {
 	BaseVolume     float64 `json:"BaseVolume"`
 	PrevDay        float64 `json:"PrevDay"`
 	TimeStamp      string  `json:"TimeStamp"`
-	DBTime     	   time.Time `default:" time.now()"`
 }
