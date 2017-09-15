@@ -134,12 +134,12 @@ func CompareMarkets(){
 	for _,v := range thisSecondMarket{
 		if v.BaseVolume != lastSecondMarket[v.MarketName].BaseVolume || v.Volume != lastSecondMarket[v.MarketName].Volume {
 			fmt.Println("call order book")
-		}else {
-			fmt.Println("don't call order book")
 		}
 
 	}
-	lastSecondMarket = thisSecondMarket
+	for k,v := range thisSecondMarket{
+		lastSecondMarket[k] = v
+	}
 }
 
 
@@ -161,7 +161,10 @@ func loopGetSummary() {
 
 			if len(lastSecondMarket) == 0 {
 				fmt.Println(1)
-				lastSecondMarket = thisSecondMarket
+				for k,v := range thisSecondMarket{
+					lastSecondMarket[k] = v
+				}
+
 			}else{
 				fmt.Println(2)
 				CompareMarkets()
