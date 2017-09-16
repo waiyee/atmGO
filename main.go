@@ -132,14 +132,16 @@ var lastSecondMarket map[string]bittrex.MarketSummary
 
 func CompareMarkets(){
 	for _,v := range thisSecondMarket{
-		if v.BaseVolume != lastSecondMarket[v.MarketName].BaseVolume || v.Volume != lastSecondMarket[v.MarketName].Volume {
+		temp := (v.BaseVolume-lastSecondMarket[v.MarketName].BaseVolume) / (v.Volume-lastSecondMarket[v.MarketName].Volume)
+		fmt.Println(temp)
+		/*if v.BaseVolume != lastSecondMarket[v.MarketName].BaseVolume || v.Volume != lastSecondMarket[v.MarketName].Volume {
 			fmt.Println("call order book")
-		}
+		}else {
+			fmt.Println("don't call order book")
+		}*/
 
 	}
-	for k,v := range thisSecondMarket{
-		lastSecondMarket[k] = v
-	}
+	lastSecondMarket = thisSecondMarket
 }
 
 
@@ -161,10 +163,7 @@ func loopGetSummary() {
 
 			if len(lastSecondMarket) == 0 {
 				fmt.Println(1)
-				for k,v := range thisSecondMarket{
-					lastSecondMarket[k] = v
-				}
-
+				lastSecondMarket = thisSecondMarket
 			}else{
 				fmt.Println(2)
 				CompareMarkets()
