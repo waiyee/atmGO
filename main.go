@@ -135,8 +135,12 @@ func CompareMarkets(){
 
 		if v.BaseVolume != lastSecondMarket[v.MarketName].BaseVolume || v.Volume != lastSecondMarket[v.MarketName].Volume {
 			fmt.Println("bv:", v.BaseVolume, "last bv:", lastSecondMarket[v.MarketName].BaseVolume, "v:", v.Volume, "last v", lastSecondMarket[v.MarketName].Volume)
-			temp := (v.BaseVolume-lastSecondMarket[v.MarketName].BaseVolume) / (v.Volume-lastSecondMarket[v.MarketName].Volume)
-			fmt.Print(temp)
+			ATP := (v.BaseVolume-lastSecondMarket[v.MarketName].BaseVolume) / (v.Volume-lastSecondMarket[v.MarketName].Volume)
+			MP := (v.Bid + v.Ask) / 2
+			LMP := (lastSecondMarket[v.MarketName].Bid + lastSecondMarket[v.MarketName].Ask) / 2
+			AMP := (MP + LMP) / 2
+			MPB := ATP - AMP
+			fmt.Print(MPB)
 		}/*else {
 			fmt.Println("don't call order book")
 		}*/
@@ -232,6 +236,12 @@ func periodicGetOrderBook(t time.Time)  {
 						break
 					}
 				}
+
+				VOI := float64(0)
+				VOI = bidVol - askVol
+				OIR := float64(0)
+				OIR = (bidVol - askVol) / (bidVol + askVol)
+
 			//fmt.Println("Order - " ,time.Now(), markets[i].MarketName, midPrice, quBidRate, quAskRate, bidVol, askVol)
 				// 	session, err := mgo.Dial("localhost:27017")
 			// if err != nil {
