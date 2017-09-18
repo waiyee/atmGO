@@ -148,8 +148,9 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 				OIR := float64(0)
 				OIR = (bidVol - askVol) / (bidVol + askVol)
 				Spread := orderBook.Sell[0].Rate - orderBook.Buy[0].Rate
+				MPB := MMPB.Markets[markets[i]]
 
-				final := (VOI / Spread) + (OIR / Spread ) + (MMPB.Markets[markets[i]] / Spread)
+				final := (VOI / Spread) + (OIR / Spread ) + (MPB / Spread)
 
 				session := mydb.Session.Clone()
 				defer session.Close()
@@ -162,7 +163,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 				}
 
 
-				fmt.Printf("Market: %v , Final : %f \n", markets[i], final)
+				fmt.Printf("Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
 
 
 
