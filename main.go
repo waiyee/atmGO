@@ -47,7 +47,7 @@ func CompareMarkets(){
 	defer MMPB.Lock.Unlock()
 	for _,v := range thisSM.Markets{
 
-		//if v.BaseVolume != lastSM.Markets[v.MarketName].BaseVolume || v.Volume != lastSM.Markets[v.MarketName].Volume {
+		if v.BaseVolume != lastSM.Markets[v.MarketName].BaseVolume || v.Volume != lastSM.Markets[v.MarketName].Volume {
 			//fmt.Println("bv:", v.BaseVolume, "last bv:", lastSecondMarket[v.MarketName].BaseVolume, "v:", v.Volume, "last v", lastSecondMarket[v.MarketName].Volume)
 			ATP := (v.BaseVolume-lastSM.Markets[v.MarketName].BaseVolume) / (v.Volume-lastSM.Markets[v.MarketName].Volume)
 			MP := (v.Bid + v.Ask) / 2
@@ -55,7 +55,7 @@ func CompareMarkets(){
 			AMP := (MP + LMP) / 2
 			MPB := ATP - AMP
 			MMPB.Markets[v.MarketName] = MPB
-		//}
+		}
 
 	}
 	lastSM.Lock.Lock()
