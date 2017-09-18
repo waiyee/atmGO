@@ -47,7 +47,7 @@ func CompareMarkets(){
 	defer MMPB.Lock.Unlock()
 	for _,v := range thisSM.Markets{
 
-		if v.BaseVolume != lastSM.Markets[v.MarketName].BaseVolume || v.Volume != lastSM.Markets[v.MarketName].Volume {
+		//if v.BaseVolume != lastSM.Markets[v.MarketName].BaseVolume || v.Volume != lastSM.Markets[v.MarketName].Volume {
 			//fmt.Println("bv:", v.BaseVolume, "last bv:", lastSecondMarket[v.MarketName].BaseVolume, "v:", v.Volume, "last v", lastSecondMarket[v.MarketName].Volume)
 			ATP := (v.BaseVolume-lastSM.Markets[v.MarketName].BaseVolume) / (v.Volume-lastSM.Markets[v.MarketName].Volume)
 			MP := (v.Bid + v.Ask) / 2
@@ -55,7 +55,7 @@ func CompareMarkets(){
 			AMP := (MP + LMP) / 2
 			MPB := ATP - AMP
 			MMPB.Markets[v.MarketName] = MPB
-		}
+		//}
 
 	}
 	lastSM.Lock.Lock()
@@ -156,10 +156,15 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 				defer session.Close()
 				//c := session.DB("v2").C("OwnOrderBook").With(session)
 
+				/** final may need to adjust to obtain a better result
+					e.g. (final / 10000000) > 0.2
+					need to test
+				*/
 				if final > 0{
 					// place buy order at ask rate
-				}else{
-					// place buy order at sell rate
+				}else if final < 0{
+					// if stocks on hand
+					// place sell order at bid rate
 				}
 
 
