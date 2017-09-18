@@ -21,7 +21,7 @@ type topOrderMarkets struct {
 }
 
 var mydb db.Mydbset
-
+var BTCMarkets []string
 
 var JobChannel = make(chan time.Time)
 //var a int64
@@ -127,27 +127,40 @@ func periodicGetSummaries(t time.Time){
 	}
 }
 */
-var thisSecondMarket map[string]bittrex.MarketSummary
-var lastSecondMarket map[string]bittrex.MarketSummary
+type thisSecondMarket struct {
+	Markets map[string]bittrex.MarketSummary
+	Lock sync.Mutex
+}
+
+type lastSecondMarket struct {
+	Markets map[string]bittrex.MarketSummary
+	Lock sync.Mutex
+}
+
+var thisSM thisSecondMarket
+var lastSM lastSecondMarket
+
 
 func CompareMarkets(){
-	for _,v := range thisSecondMarket{
+	for _,v := range thisSM.Markets{
 
-		if v.BaseVolume != lastSecondMarket[v.MarketName].BaseVolume || v.Volume != lastSecondMarket[v.MarketName].Volume {
-			fmt.Println("bv:", v.BaseVolume, "last bv:", lastSecondMarket[v.MarketName].BaseVolume, "v:", v.Volume, "last v", lastSecondMarket[v.MarketName].Volume)
-			ATP := (v.BaseVolume-lastSecondMarket[v.MarketName].BaseVolume) / (v.Volume-lastSecondMarket[v.MarketName].Volume)
+		if v.BaseVolume != lastSM.Markets[v.MarketName].BaseVolume || v.Volume != lastSM.Markets[v.MarketName].Volume {
+			//fmt.Println("bv:", v.BaseVolume, "last bv:", lastSecondMarket[v.MarketName].BaseVolume, "v:", v.Volume, "last v", lastSecondMarket[v.MarketName].Volume)
+			ATP := (v.BaseVolume-lastSM.Markets[v.MarketName].BaseVolume) / (v.Volume-lastSM.Markets[v.MarketName].Volume)
 			MP := (v.Bid + v.Ask) / 2
-			LMP := (lastSecondMarket[v.MarketName].Bid + lastSecondMarket[v.MarketName].Ask) / 2
+			LMP := (lastSM.Markets[v.MarketName].Bid + lastSM.Markets[v.MarketName].Ask) / 2
 			AMP := (MP + LMP) / 2
 			MPB := ATP - AMP
-			fmt.Print(MPB)
+			fmt.Println("MPB", MPB)
 		}/*else {
 			fmt.Println("don't call order book")
 		}*/
 
 	}
-	for k, v := range thisSecondMarket {
-		lastSecondMarket[k] = v
+	lastSM.Lock.Lock()
+	defer lastSM.Lock.Unlock()
+	for k, v := range thisSM.Markets {
+		lastSM.Markets[k] = v
 	}
 }
 
@@ -163,19 +176,22 @@ func loopGetSummary() {
 				fmt.Println("periodicGetSummaries", time.Now(), err)
 			}
 
+			thisSM.Lock.Lock()
+			defer thisSM.Lock.Unlock()
 			for _,v:= range markets {
-				thisSecondMarket[v.MarketName] = v
+				thisSM.Markets[v.MarketName] = v
 			}
 
 
-			if len(lastSecondMarket) == 0 {
-				fmt.Println(1)
-				for k, v := range thisSecondMarket {
-					lastSecondMarket[k] = v
+			if len(lastSM.Markets) == 0 {
+				lastSM.Lock.Lock()
+				defer lastSM.Lock.Unlock()
+				for k, v := range thisSM.Markets {
+					lastSM.Markets[k] = v
 				}
 
 			}else{
-				fmt.Println(2)
+
 				CompareMarkets()
 			}
 
@@ -186,9 +202,8 @@ func loopGetSummary() {
 }
 
 
-func periodicGetOrderBook(t time.Time)  {
+func periodicGetOrderBook(t time.Time, markets []string)  {
 	wg := &sync.WaitGroup{}
-	markets := getMarkets()
 
 
 	obRate := 0.125
@@ -208,7 +223,7 @@ func periodicGetOrderBook(t time.Time)  {
 		wg.Add(1)
 		go func(wg *sync.WaitGroup, i int) {
 
-			orderBook, err := bittrex.GetOrderBook(markets[i].MarketName, "both")
+			orderBook, err := bittrex.GetOrderBook(markets[i], "both")
 			if err != nil {
 				fmt.Println("periodicGetOrderBook1 - ", time.Now(), err)
 			}else if len(orderBook.Buy) > 0 && len(orderBook.Sell) > 0 {
@@ -241,7 +256,7 @@ func periodicGetOrderBook(t time.Time)  {
 				VOI = bidVol - askVol
 				OIR := float64(0)
 				OIR = (bidVol - askVol) / (bidVol + askVol)
-
+				fmt.Println("VOI", VOI, "OIR",OIR)
 			//fmt.Println("Order - " ,time.Now(), markets[i].MarketName, midPrice, quBidRate, quAskRate, bidVol, askVol)
 				// 	session, err := mgo.Dial("localhost:27017")
 			// if err != nil {
@@ -276,12 +291,57 @@ func periodicGetOrderBook(t time.Time)  {
 }
 
 
+/**
+ * Used to refresh the available markets in bittrex, once per program should good enough
+ */
+func refreshMarkets(){
+	bAPI := bittrex.New(API_KEY, API_SECRET)
+
+	markets, err := bAPI.GetMarkets()
+	if err != nil {
+		fmt.Println("refreshMarkets - " , time.Now(), err)
+	}
+
+	i := 0
+	for _,v := range markets {
+		if v.BaseCurrency == "BTC"{
+			BTCMarkets = append(BTCMarkets, v.MarketName)
+			i++
+		}
+	}
+}
+
 func loopGetOrderBook()  {
 /*	var wgo sync.WaitGroup
 	wgo.Add(1)*/
-	for t := range time.NewTicker(time.Second ).C {
+	lenOfM := len(BTCMarkets)
+	start := 0
+	end := -1
+	limit := 8
+	for t := range time.NewTicker(time.Second).C {
+		var OrderMarkets []string
+		if end + 1 < lenOfM && end + limit< lenOfM {
+			start = end + 1
+			end += limit
+			OrderMarkets = BTCMarkets[start:end+1]
+		} else if end + 1 < lenOfM {
+			start = end + 1
+			end = lenOfM -1
+			OrderMarkets = BTCMarkets[start:end+1]
+			end = limit - ( end - start +1 ) -1
+			start = 0
+			for i:= start ; i <= end ; i ++ {
+				OrderMarkets = append(OrderMarkets, BTCMarkets[i])
+			}
 
-		go periodicGetOrderBook(t)
+		} else {
+			start = 0
+			end = -1 + limit
+			OrderMarkets = BTCMarkets[start:end+1]
+		}
+
+
+		go periodicGetOrderBook(t, OrderMarkets)
 		JobChannel <- t
 		//defer wgo.Done()
 	}
@@ -293,14 +353,17 @@ func loopGetOrderBook()  {
 func main() {
 	mydb = db.NewDbSession("mongodb://localhost:27017/?authSource=v2", "v2")
 
-	thisSecondMarket = make(map[string]bittrex.MarketSummary)
-	lastSecondMarket = make(map[string]bittrex.MarketSummary)
+	thisSM.Markets = make(map[string]bittrex.MarketSummary)
+	lastSM.Markets = make(map[string]bittrex.MarketSummary)
 	// Bittrex client
-	bittrex := bittrex.New(API_KEY, API_SECRET)
+	//bAPI := bittrex.New(API_KEY, API_SECRET)
 
 	// Buffer for calling bittrex API
-	balances, err := bittrex.GetTicker("BTC-LTC")
-	fmt.Println(time.Now(),err, balances)
+	/*balances, err := bAPI.GetTicker("BTC-LTC")
+	fmt.Println(time.Now(),err, balances)*/
+
+	refreshMarkets()
+
 
 	/* Code for listen Ctrl + C to stop the bot*/
 	cc := make(chan os.Signal, 1)
