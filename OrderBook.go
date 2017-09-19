@@ -96,6 +96,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 						break
 					}
 				}
+
 				VB := float64(0)
 				VA := float64(0)
 				Pbt := thisSM.Markets[markets[i]].Bid
@@ -124,6 +125,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 				OIR := float64(0)
 				OIR = (bidVol - askVol) / (bidVol + askVol)
 				Spread := orderBook.Sell[0].Rate - orderBook.Buy[0].Rate
+				Spread = Spread * 10000000
 				MMPB.Lock.Lock()
 				defer MMPB.Lock.Unlock()
 				MPB := MMPB.Markets[markets[i]]
