@@ -52,6 +52,10 @@ func loopGetOrderBook()  {
 }
 
 
+type WalletBalance struct {
+	Balance      string    `json:"balance" bson:"balance"`
+}
+
 
 func periodicGetOrderBook(t time.Time, markets []string)  {
 	wg := &sync.WaitGroup{}
@@ -119,12 +123,23 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 
 				}).All(&boughtOrder)
 
-				fmt.Println("test", boughtOrder)
+
 				if err != nil{
-					fmt.Printf("Select buying selling market ", time.Now(),err)
+					fmt.Println("Select buying selling market ", time.Now(),err)
+				}
+				BTCBalance := new(WalletBalance)
+				d := session.DB("v2").C("WalletBalance").With(session)
+				err = d.Find(bson.M{
+					"currency" : "BTC",
+				}).One(&BTCBalance)
+				if err != nil{
+					fmt.Println("Select buying selling market ", time.Now(),err)
 				}
 
+				fmt.Println("BTC", BTCBalance)
+
 				if final > 0 && len(boughtOrder) == 0{
+					fmt.Println("Buy Order for Market" , markets[i])
 					// place buy order at ask rate
 					rate := orderBook.Sell[0].Rate
 					// Attention for not enough balance?

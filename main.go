@@ -50,6 +50,8 @@ func updateWallet(){
 	session := mydb.Session.Clone()
 	defer session.Close()
 	c := session.DB("v2").C("WalletBalance").With(session)
+	c.DropCollection()
+
 	for _, v := range wallet{
 		err := c.Insert(&v)
 		if err != nil{
