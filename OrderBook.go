@@ -206,7 +206,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					sellOrder := &boughtOrder[0]
 					rate := orderBook.Buy[0].Rate
 					quantity := sellOrder.Buy.Quantity
-					ofee := rate * quantity
+					ofee := (rate * quantity) * fee
 					total := (rate*quantity) - ofee
 					wallet := BTCBalance.Available + total
 					sellOrder.Sell.Status = "sold"
