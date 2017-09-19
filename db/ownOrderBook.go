@@ -1,8 +1,12 @@
 package db
 
-import "time"
+import (
+	"time"
+	"gopkg.in/mgo.v2/bson"
+)
 
 type Orders struct{
+	Id bson.ObjectId  `json:"id"        bson:"_id,omitempty"`
 	Status string
 	MarketName string
 	CreatedAt time.Time

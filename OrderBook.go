@@ -53,7 +53,7 @@ func loopGetOrderBook()  {
 
 
 type WalletBalance struct {
-	Balance      string    `json:"balance" bson:"balance"`
+	Balance      float64    `json:"balance" bson:"balance"`
 }
 
 
@@ -96,14 +96,16 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 						break
 					}
 				}
-
 				VB := float64(0)
 				VA := float64(0)
+				thisSM.Lock.Lock()
+				lastSM.Lock.Lock()
 				Pbt := thisSM.Markets[markets[i]].Bid
 				Pbt1 := lastSM.Markets[markets[i]].Bid
 				Pat := thisSM.Markets[markets[i]].Ask
 				Pat1 := lastSM.Markets[markets[i]].Ask
-
+				thisSM.Lock.Unlock()
+				lastSM.Lock.Unlock()
 				if Pbt < Pbt1{
 					VB = 0
 				}else if Pbt > Pbt1{
@@ -125,7 +127,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 				OIR := float64(0)
 				OIR = (bidVol - askVol) / (bidVol + askVol)
 				Spread := orderBook.Sell[0].Rate - orderBook.Buy[0].Rate
-				Spread = Spread * 10000000
+				Spread = Spread * 100000000
 				MMPB.Lock.Lock()
 				defer MMPB.Lock.Unlock()
 				MPB := MMPB.Markets[markets[i]]
@@ -151,18 +153,16 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 				if err != nil{
 					fmt.Println("Select buying selling market ", time.Now(),err)
 				}
-				BTCBalance := new(WalletBalance)
+				var BTCBalance WalletBalance
 				d := session.DB("v2").C("WalletBalance").With(session)
 				err = d.Find(bson.M{
 					"currency" : "BTC",
-				}).One(&BTCBalance)
+				}).Select(bson.M{"available":1}).One(&BTCBalance)
 				if err != nil{
 					fmt.Println("Select buying selling market ", time.Now(),err)
 				}
 
-				fmt.Println("BTC", BTCBalance)
-
-				if final > 0 && len(boughtOrder) == 0{
+				if final > 0 && len(boughtOrder) == 0 && BTCBalance.Balance >= minTotal{
 					fmt.Println("Buy Order for Market" , markets[i])
 					// place buy order at ask rate
 					rate := orderBook.Sell[0].Rate
@@ -171,7 +171,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					uuid := "xyz" // get from bittrex api
 					ofee := rate * quantity * fee
 					total := ( rate * quantity ) + ofee
-
+					wallet := BTCBalance.Balance - total
 					buyorder := &db.Orders{
 						Status : "buying",
 						MarketName : markets[i],
@@ -179,7 +179,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 						UpdatedAt: time.Now(),
 						Buy: db.OrderBook{
 							UUID: uuid,
-							Status: "buying",
+							Status: "bought",
 							Quantity: quantity,
 							Rate: rate,
 							Fee: ofee,
@@ -188,13 +188,35 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 						},
 					}
 					err := c.Insert(&buyorder)
+					err2 := d.Update(bson.M{"currency":"BTC"}, bson.M{"$set" : bson.M{"balance": wallet}})
 					if err != nil {
 						fmt.Println("Place buy order - ", time.Now(), err)
+					}
+					if err2!= nil{
+						fmt.Println("Update Wallet - ", time.Now(), err2)
 					}
 				}else if final < 0 && len(boughtOrder) > 0 {
 					// if stocks on hand
 					// place sell order at bid rate
-					//rate := orderBook.Buy[0].Rate
+					sellOrder := &boughtOrder[0]
+					rate := orderBook.Buy[0].Rate
+					quantity := sellOrder.Buy.Quantity
+					ofee := rate * quantity
+					total := (rate*quantity) - ofee
+					wallet := BTCBalance.Balance + total
+					sellOrder.Sell.Rate = rate
+					sellOrder.Sell.Quantity = quantity
+					sellOrder.Sell.Fee = ofee
+					sellOrder.Sell.Total = total
+
+					err := c.Update(bson.M{ "_id" : boughtOrder[0].Id}, &sellOrder)
+					err2 := d.Update(bson.M{"currency":"BTC"}, bson.M{"$set" : bson.M{"balance": wallet}})
+					if err != nil {
+						fmt.Println("Place buy order - ", time.Now(), err)
+					}
+					if err2!= nil{
+						fmt.Println("Update Wallet - ", time.Now(), err2)
+					}
 				}
 
 
