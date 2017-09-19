@@ -96,9 +96,31 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 						break
 					}
 				}
+				VB := float64(0)
+				VA := float64(0)
+				Pbt := thisSM.Markets[markets[i]].Bid
+				Pbt1 := lastSM.Markets[markets[i]].Bid
+				Pat := thisSM.Markets[markets[i]].Ask
+				Pat1 := lastSM.Markets[markets[i]].Ask
+
+				if Pbt < Pbt1{
+					VB = 0
+				}else if Pbt > Pbt1{
+					VB = bidVol
+				}else{
+					VB = 0
+				}
+
+				if Pat < Pat1{
+					VA = askVol
+				}else if Pat > Pat1{
+					VA = 0
+				}else{
+					VA = 0
+				}
 
 				VOI := float64(0)
-				VOI = bidVol - askVol
+				VOI = VB - VA
 				OIR := float64(0)
 				OIR = (bidVol - askVol) / (bidVol + askVol)
 				Spread := orderBook.Sell[0].Rate - orderBook.Buy[0].Rate
