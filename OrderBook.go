@@ -176,7 +176,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					total := ( rate * quantity ) + ofee
 					wallet := BTCBalance.Available - total
 					buyorder := &db.Orders{
-						Status : "buying",
+						Status : "bought",
 						MarketName : markets[i],
 						CreatedAt: time.Now(),
 						UpdatedAt: time.Now(),
