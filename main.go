@@ -40,7 +40,25 @@ var lastSM lastSecondMarket
 var MMPB MarketMPB
 var fee float64 = 0.0025
 
+func updateWallet(){
+	bAPI := bittrex.New(API_KEY, API_SECRET)
+	wallet, err := bAPI.GetBalances()
+	if err!=nil{
+		fmt.Println("Update Wallet ", time.Now(), err)
+	}
 
+	session := mydb.Session.Clone()
+	defer session.Close()
+	c := session.DB("v2").C("WalletBalance").With(session)
+	for _, v := range wallet{
+		err := c.Insert(&v)
+		if err != nil{
+			fmt.Println("Update Wallet in db ", time.Now(), err)
+		}
+	}
+
+
+}
 
 
 /**
@@ -78,6 +96,7 @@ func main() {
 	fmt.Println(time.Now(),err, balances)*/
 
 	refreshMarkets()
+	updateWallet()
 
 
 	/* Code for listen Ctrl + C to stop the bot*/

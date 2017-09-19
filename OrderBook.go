@@ -7,9 +7,10 @@ import (
 	"atm/bittrex"
 
 	"atm/db"
+
 )
 
-var minTotal = float64(60000)
+var minTotal = float64(0.00060000)
 
 /**
 * Loop the order book limit to 8 markets per second
@@ -96,6 +97,8 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 				OIR := float64(0)
 				OIR = (bidVol - askVol) / (bidVol + askVol)
 				Spread := orderBook.Sell[0].Rate - orderBook.Buy[0].Rate
+				MMPB.Lock.Lock()
+				defer MMPB.Lock.Unlock()
 				MPB := MMPB.Markets[markets[i]]
 
 				final := (VOI / Spread) + (OIR / Spread ) + (MPB / Spread)
@@ -112,7 +115,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					// place buy order at ask rate
 					rate := orderBook.Sell[0].Rate
 					// Attention for not enough balance?
-					quantity := minTotal * (1-fee) / rate
+					quantity := (minTotal * (1-fee)) / rate
 					uuid := "xyz" // get from bittrex api
 					buyorder := &db.Orders{
 						Status : "buying",
@@ -158,11 +161,14 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 
 
 func refreshOrder(){
-	for t:= range time.NewTicker(time.Millisecond * 500 ).C{
+	for t:= range time.NewTicker(time.Millisecond * 125 ).C{
 		// Prepare to update order status from bittrex
 		bapi := bittrex.New(API_KEY, API_SECRET)
-		orderHistory, err := bapi.GetOrderHistory("all")
-		fmt.Println(err, orderHistory)
+		xxx, err := bapi.GetOrder("dc7db5c5-37b7-4fbf-b619-15a2b0b23dbe")
+		fmt.Println(xxx)
+		if err != nil{
+			fmt.Println("Refresh order ", time.Now(), err)
+		}
 
 		JobChannel <- t
 	}
