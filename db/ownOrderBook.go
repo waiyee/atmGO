@@ -24,5 +24,5 @@ type OrderBook struct{
 	Total float64
 	OrderTime time.Time
 	CompleteTime time.Time
-
+	Final float64
 }
