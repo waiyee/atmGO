@@ -4,6 +4,7 @@ import (
 	"time"
 	"atm/bittrex"
 	"atm/db"
+	"gopkg.in/mgo.v2/bson"
 )
 
 func CompareMarkets(){
