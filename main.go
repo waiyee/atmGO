@@ -57,7 +57,7 @@ func updateWallet(){
 		err := c.Insert(&v)
 		if err != nil{
 			e := session.DB("v2").C("ErrorLog").With(session)
-			e.Insert(&db.ErrorLog{Description:"Update Wallet in DB", Error:string(err), Time:time.Now()})
+			e.Insert(&db.ErrorLog{Description:"Update Wallet in DB", Error:err.Error(), Time:time.Now()})
 		}
 	}
 
@@ -74,7 +74,7 @@ func  refreshBTCBalance() {
 		if err != nil{
 
 			e := session.DB("v2").C("ErrorLog").With(session)
-			e.Insert(&db.ErrorLog{Description:"Refresh BTC balance - API", Error:string(err), Time:time.Now()})
+			e.Insert(&db.ErrorLog{Description:"Refresh BTC balance - API", Error:err.Error(), Time:time.Now()})
 
 		}
 
@@ -96,7 +96,7 @@ func refreshMarkets(){
 		session := mydb.Session.Clone()
 		defer session.Close()
 		e := session.DB("v2").C("ErrorLog").With(session)
-		e.Insert(&db.ErrorLog{Description:"refreshMarkets  - API", Error:string(err), Time:time.Now()})
+		e.Insert(&db.ErrorLog{Description:"refreshMarkets  - API", Error:err.Error(), Time:time.Now()})
 
 	}
 

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"time"
 	"atm/bittrex"
 	"atm/db"
@@ -42,7 +41,7 @@ func loopGetSummary() {
 				session := mydb.Session.Clone()
 				defer session.Close()
 				e := session.DB("v2").C("ErrorLog").With(session)
-				e.Insert(&db.ErrorLog{Description:"Get summaries - API", Error:string(err), Time:time.Now()})
+				e.Insert(&db.ErrorLog{Description:"Get summaries - API", Error:err.Error(), Time:time.Now()})
 			}
 
 			thisSM.Lock.Lock()

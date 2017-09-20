@@ -74,7 +74,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 			if err != nil {
 
 				e := session.DB("v2").C("ErrorLog").With(session)
-				e.Insert(&db.ErrorLog{Description:"PeriodicGetOrderbook - API ", Error:string(err), Time:time.Now()})
+				e.Insert(&db.ErrorLog{Description:"PeriodicGetOrderbook - API ", Error:err.Error(), Time:time.Now()})
 
 			}else if len(orderBook.Buy) > 0 && len(orderBook.Sell) > 0 {
 				bidVol := float64(0)
@@ -157,7 +157,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 				if err != nil{
 
 					e := session.DB("v2").C("ErrorLog").With(session)
-					e.Insert(&db.ErrorLog{Description:"Periodic get order Select bought orders", Error:string(err), Time:time.Now()})
+					e.Insert(&db.ErrorLog{Description:"Periodic get order Select bought orders", Error:err.Error(), Time:time.Now()})
 
 				}
 				var BTCBalance WalletBalance
@@ -168,7 +168,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 				if err != nil{
 
 					e := session.DB("v2").C("ErrorLog").With(session)
-					e.Insert(&db.ErrorLog{Description:"Get BTC Balance of DB", Error:string(err), Time:time.Now()})
+					e.Insert(&db.ErrorLog{Description:"Get BTC Balance of DB", Error:err.Error(), Time:time.Now()})
 				}
 
 				thresold := float64(0)
@@ -183,7 +183,9 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					uuid := "xyz" // get from bittrex api
 					/*uuid,placeOErr := bittrex.BuyLimit(markets[i],quantity, rate)
 					if placeOErr!= err{
-						fmt.Println("Place Buy Limit ", time.Now(), placeOErr)
+					e := session.DB("v2").C("ErrorLog").With(session)
+					e.Insert(&db.ErrorLog{Description:"Place Buy Limit - API", Error:placeOErr.Error(), Time:time.Now()})
+
 					}*/
 					ofee := rate * quantity * fee
 					total := ( rate * quantity ) + ofee
@@ -209,13 +211,13 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					if err != nil {
 
 						e := session.DB("v2").C("ErrorLog").With(session)
-						e.Insert(&db.ErrorLog{Description:"Place buy order", Error:string(err), Time:time.Now()})
+						e.Insert(&db.ErrorLog{Description:"Place buy order", Error:err.Error(), Time:time.Now()})
 
 					}
 					if err2!= nil{
 
 						e := session.DB("v2").C("ErrorLog").With(session)
-						e.Insert(&db.ErrorLog{Description:"Update Wallet Balace @ buy order", Error:string(err2), Time:time.Now()})
+						e.Insert(&db.ErrorLog{Description:"Update Wallet Balace @ buy order", Error:err2.Error(), Time:time.Now()})
 
 					}
 				}else if final < thresold*-1 && len(boughtOrder) > 0 {
@@ -231,7 +233,9 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					uuid := "abc"
 					/*uuid,placeOErr := bittrex.SellLimit(markets[i],quantity, rate)
 					if placeOErr!= err{
-						fmt.Println("Place Buy Limit ", time.Now(), placeOErr)
+						e := session.DB("v2").C("ErrorLog").With(session)
+					e.Insert(&db.ErrorLog{Description:"Place Buy Limit - API", Error:placeOErr.Error(), Time:time.Now()})
+
 					}*/
 					sellOrder.Sell.UUID = uuid
 					sellOrder.Sell.Status = "sold"
@@ -247,13 +251,13 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					if err != nil {
 
 						e := session.DB("v2").C("ErrorLog").With(session)
-						e.Insert(&db.ErrorLog{Description:"Place sell order", Error:string(err), Time:time.Now()})
+						e.Insert(&db.ErrorLog{Description:"Place sell order", Error:err.Error(), Time:time.Now()})
 
 					}
 					if err2!= nil{
 
 						e := session.DB("v2").C("ErrorLog").With(session)
-						e.Insert(&db.ErrorLog{Description:"Update Wallet @ sell order", Error:string(err2), Time:time.Now()})
+						e.Insert(&db.ErrorLog{Description:"Update Wallet @ sell order", Error:err2.Error(), Time:time.Now()})
 
 					}
 				}
@@ -287,7 +291,7 @@ func refreshOrder(){
 		if cerr != nil {
 
 			e := session.DB("v2").C("ErrorLog").With(session)
-			e.Insert(&db.ErrorLog{Description:"Get selling buying orders", Error:string(cerr), Time:time.Now()})
+			e.Insert(&db.ErrorLog{Description:"Get selling buying orders", Error:cerr.Error(), Time:time.Now()})
 
 		}
 		bapi := bittrex.New(API_KEY, API_SECRET)
@@ -306,7 +310,7 @@ func refreshOrder(){
 			result, err := bapi.GetOrder(uuid)
 			if err != nil{
 				e := session.DB("v2").C("ErrorLog").With(session)
-				e.Insert(&db.ErrorLog{Description:"Refresh order - API", Error:string(err), Time:time.Now()})
+				e.Insert(&db.ErrorLog{Description:"Refresh order - API", Error:err.Error(), Time:time.Now()})
 			}else{
 				if !result.IsOpen {
 					if v.Status == "buying" {
@@ -335,7 +339,7 @@ func refreshOrder(){
 						t, err2 := time.Parse(time.RFC3339, result.Closed)
 						if err2!= nil{
 							e := session.DB("v2").C("ErrorLog").With(session)
-							e.Insert(&db.ErrorLog{Description:"Re-prase time error", Error:string(err2), Time:time.Now()})
+							e.Insert(&db.ErrorLog{Description:"Re-prase time error", Error:err2.Error(), Time:time.Now()})
 							v.Sell.CompleteTime = time.Now()
 						} else{
 							v.Sell.CompleteTime = t
