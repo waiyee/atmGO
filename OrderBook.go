@@ -180,13 +180,13 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					rate := orderBook.Sell[0].Rate
 					// Attention for not enough balance?
 					quantity := (minTotal * (1-fee)) / rate
-					uuid := "xyz" // get from bittrex api
-					/*uuid,placeOErr := bittrex.BuyLimit(markets[i],quantity, rate)
+					//uuid := "xyz" // get from bittrex api
+					uuid,placeOErr := bittrex.BuyLimit(markets[i],quantity, rate)
 					if placeOErr!= err{
 					e := session.DB("v2").C("ErrorLog").With(session)
 					e.Insert(&db.ErrorLog{Description:"Place Buy Limit - API", Error:placeOErr.Error(), Time:time.Now()})
 
-					}*/
+					}
 					ofee := rate * quantity * fee
 					total := ( rate * quantity ) + ofee
 					wallet := BTCBalance.Available - total
@@ -231,13 +231,13 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					ofee := (rate * quantity) * fee
 					total := (rate*quantity) - ofee
 					wallet := BTCBalance.Available + total
-					uuid := "abc"
-					/*uuid,placeOErr := bittrex.SellLimit(markets[i],quantity, rate)
+					//uuid := "abc"
+					uuid,placeOErr := bittrex.SellLimit(markets[i],quantity, rate)
 					if placeOErr!= err{
 						e := session.DB("v2").C("ErrorLog").With(session)
 					e.Insert(&db.ErrorLog{Description:"Place Buy Limit - API", Error:placeOErr.Error(), Time:time.Now()})
 
-					}*/
+					}
 					sellOrder.Sell.UUID = uuid
 					sellOrder.Sell.Status = "sold"
 					sellOrder.Status = "sold"
