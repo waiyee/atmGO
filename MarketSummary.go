@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 	"atm/bittrex"
+	"atm/db"
 )
 
 func CompareMarkets(){
@@ -38,7 +39,10 @@ func loopGetSummary() {
 
 			markets, err := b.GetMarketSummaries()
 			if err != nil {
-				fmt.Println("periodicGetSummaries", time.Now(), err)
+				session := mydb.Session.Clone()
+				defer session.Close()
+				e := session.DB("v2").C("ErrorLog").With(session)
+				e.Insert(&db.ErrorLog{Description:"Get summaries - API", Error:string(err), Time:time.Now()})
 			}
 
 			thisSM.Lock.Lock()

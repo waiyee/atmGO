@@ -11,6 +11,7 @@ import (
 	"sync"
 	"atm/db"
 
+	"gopkg.in/mgo.v2/bson"
 )
 
 
@@ -44,7 +45,7 @@ func updateWallet(){
 	bAPI := bittrex.New(API_KEY, API_SECRET)
 	wallet, err := bAPI.GetBalances()
 	if err!=nil{
-		fmt.Println("Update Wallet ", time.Now(), err)
+		fmt.Println("Update Wallet -API ", time.Now(), err)
 	}
 
 	session := mydb.Session.Clone()
@@ -55,14 +56,35 @@ func updateWallet(){
 	for _, v := range wallet{
 		err := c.Insert(&v)
 		if err != nil{
-			fmt.Println("Update Wallet in db ", time.Now(), err)
+			e := session.DB("v2").C("ErrorLog").With(session)
+			e.Insert(&db.ErrorLog{Description:"Update Wallet in DB", Error:string(err), Time:time.Now()})
 		}
 	}
 
 
 }
 
+func  refreshBTCBalance() {
 
+	for t := range time.NewTicker(time.Minute).C {
+		bAPI := bittrex.New(API_KEY, API_SECRET)
+		session := mydb.Session.Clone()
+		defer session.Close()
+		btc, err := bAPI.GetBalance("BTC")
+		if err != nil{
+
+			e := session.DB("v2").C("ErrorLog").With(session)
+			e.Insert(&db.ErrorLog{Description:"Refresh BTC balance - API", Error:string(err), Time:time.Now()})
+
+		}
+
+
+		c := session.DB("v2").C("WalletBalance").With(session)
+		c.Update(bson.M{"currency":"BTC"}, bson.M{"$set" :bson.M{"balance":btc.Balance, "available":btc.Available}})
+
+		JobChannel <- t
+	}
+}
 /**
  * Used to refresh the available markets in bittrex, once per program should good enough
  */
@@ -71,7 +93,11 @@ func refreshMarkets(){
 
 	markets, err := bAPI.GetMarkets()
 	if err != nil {
-		fmt.Println("refreshMarkets - " , time.Now(), err)
+		session := mydb.Session.Clone()
+		defer session.Close()
+		e := session.DB("v2").C("ErrorLog").With(session)
+		e.Insert(&db.ErrorLog{Description:"refreshMarkets  - API", Error:string(err), Time:time.Now()})
+
 	}
 
 	i := 0
@@ -121,6 +147,8 @@ func main() {
 	go loopGetOrderBook()
 
 	go refreshOrder()
+
+	go refreshBTCBalance()
 
 
 	for j:= range JobChannel{
