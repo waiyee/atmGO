@@ -188,40 +188,41 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					e := session.DB("v2").C("ErrorLog").With(session)
 					e.Insert(&db.ErrorLog{Description:"Place Buy Limit - API", Error:placeOErr.Error(), Time:time.Now()})
 
-					}
-					ofee := rate * quantity * fee
-					total := ( rate * quantity ) + ofee
-					wallet := BTCBalance.Available - total
-					buyorder := &db.Orders{
-						Status : "buying",
-						MarketName : markets[i],
-						CurrentRate : rate,
-						CreatedAt: time.Now(),
-						UpdatedAt: time.Now(),
-						Buy: db.OrderBook{
-							UUID: uuid,
-							Status: "buying",
-							Quantity: quantity,
-							Rate: rate,
-							Fee: ofee,
-							Total: total,
-							OrderTime: time.Now(),
-							Final: final,
-						},
-					}
-					err := c.Insert(&buyorder)
-					err2 := d.Update(bson.M{"currency":"BTC"}, bson.M{"$set" : bson.M{"available": wallet}})
-					if err != nil {
+					} else {
+						ofee := rate * quantity * fee
+						total := ( rate * quantity ) + ofee
+						wallet := BTCBalance.Available - total
+						buyorder := &db.Orders{
+							Status:      "buying",
+							MarketName:  markets[i],
+							CurrentRate: rate,
+							CreatedAt:   time.Now(),
+							UpdatedAt:   time.Now(),
+							Buy: db.OrderBook{
+								UUID:      uuid,
+								Status:    "buying",
+								Quantity:  quantity,
+								Rate:      rate,
+								Fee:       ofee,
+								Total:     total,
+								OrderTime: time.Now(),
+								Final:     final,
+							},
+						}
+						err := c.Insert(&buyorder)
+						err2 := d.Update(bson.M{"currency": "BTC"}, bson.M{"$set": bson.M{"available": wallet}})
+						if err != nil {
 
-						e := session.DB("v2").C("ErrorLog").With(session)
-						e.Insert(&db.ErrorLog{Description:"Place buy order", Error:err.Error(), Time:time.Now()})
+							e := session.DB("v2").C("ErrorLog").With(session)
+							e.Insert(&db.ErrorLog{Description: "Place buy order", Error: err.Error(), Time: time.Now()})
 
-					}
-					if err2!= nil{
+						}
+						if err2 != nil {
 
-						e := session.DB("v2").C("ErrorLog").With(session)
-						e.Insert(&db.ErrorLog{Description:"Update Wallet Balace @ buy order", Error:err2.Error(), Time:time.Now()})
+							e := session.DB("v2").C("ErrorLog").With(session)
+							e.Insert(&db.ErrorLog{Description: "Update Wallet Balace @ buy order", Error: err2.Error(), Time: time.Now()})
 
+						}
 					}
 				}else if final < -0.1 && len(boughtOrder) > 0 {
 					fmt.Printf("Sold Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
@@ -255,29 +256,30 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 						e := session.DB("v2").C("ErrorLog").With(session)
 					e.Insert(&db.ErrorLog{Description:"Place Buy Limit - API", Error:placeOErr.Error(), Time:time.Now()})
 
-					}
-					sellOrder.Sell.UUID = uuid
-					sellOrder.Sell.Status = "selling"
-					sellOrder.Status = "selling"
-					sellOrder.Sell.Rate = rate
-					sellOrder.Sell.Quantity = quantity
-					sellOrder.Sell.Fee = ofee
-					sellOrder.Sell.Total = total
-					sellOrder.Sell.Final = final
+					}else {
+						sellOrder.Sell.UUID = uuid
+						sellOrder.Sell.Status = "selling"
+						sellOrder.Status = "selling"
+						sellOrder.Sell.Rate = rate
+						sellOrder.Sell.Quantity = quantity
+						sellOrder.Sell.Fee = ofee
+						sellOrder.Sell.Total = total
+						sellOrder.Sell.Final = final
 
-					err := c.Update(bson.M{ "_id" : boughtOrder[0].Id}, &sellOrder)
-					err2 := d.Update(bson.M{"currency":"BTC"}, bson.M{"$set" : bson.M{"available": wallet}})
-					if err != nil {
+						err := c.Update(bson.M{"_id": boughtOrder[0].Id}, &sellOrder)
+						err2 := d.Update(bson.M{"currency": "BTC"}, bson.M{"$set": bson.M{"available": wallet}})
+						if err != nil {
 
-						e := session.DB("v2").C("ErrorLog").With(session)
-						e.Insert(&db.ErrorLog{Description:"Place sell order", Error:err.Error(), Time:time.Now()})
+							e := session.DB("v2").C("ErrorLog").With(session)
+							e.Insert(&db.ErrorLog{Description: "Place sell order", Error: err.Error(), Time: time.Now()})
 
-					}
-					if err2!= nil{
+						}
+						if err2 != nil {
 
-						e := session.DB("v2").C("ErrorLog").With(session)
-						e.Insert(&db.ErrorLog{Description:"Update Wallet @ sell order", Error:err2.Error(), Time:time.Now()})
+							e := session.DB("v2").C("ErrorLog").With(session)
+							e.Insert(&db.ErrorLog{Description: "Update Wallet @ sell order", Error: err2.Error(), Time: time.Now()})
 
+						}
 					}
 				}
 
@@ -399,23 +401,24 @@ func refreshOrder(){
 								e := session.DB("v2").C("ErrorLog").With(session)
 								e.Insert(&db.ErrorLog{Description:"Selling too long sell Limit - API", Error:placeOErr.Error(), Time:time.Now()})
 
-							}
-							v.Sell.UUID = uuid
-							v.Sell.Status = "selling"
-							v.Status = "selling"
-							v.Sell.Rate = rate
-							v.Sell.Quantity = quantity
-							v.Sell.Fee = ofee
-							v.Sell.Total = total
+							} else {
 
+								v.Sell.UUID = uuid
+								v.Sell.Status = "selling"
+								v.Status = "selling"
+								v.Sell.Rate = rate
+								v.Sell.Quantity = quantity
+								v.Sell.Fee = ofee
+								v.Sell.Total = total
 
-							sellerr := c.Update(bson.M{ "_id" : v.Id}, &v)
+								sellerr := c.Update(bson.M{"_id": v.Id}, &v)
 
-							if err != nil {
+								if err != nil {
 
-								e := session.DB("v2").C("ErrorLog").With(session)
-								e.Insert(&db.ErrorLog{Description:"Place sell order", Error:sellerr.Error(), Time:time.Now()})
+									e := session.DB("v2").C("ErrorLog").With(session)
+									e.Insert(&db.ErrorLog{Description: "Place sell order", Error: sellerr.Error(), Time: time.Now()})
 
+								}
 							}
 						}
 					}
@@ -439,25 +442,24 @@ func refreshOrder(){
 					e := session.DB("v2").C("ErrorLog").With(session)
 					e.Insert(&db.ErrorLog{Description:"24 hours Place sell Limit - API", Error:placeOErr.Error(), Time:time.Now()})
 
+				}else {
+					v.Sell.UUID = uuid
+					v.Sell.Status = "selling"
+					v.Status = "selling"
+					v.Sell.Rate = rate
+					v.Sell.Quantity = quantity
+					v.Sell.Fee = ofee
+					v.Sell.Total = total
+
+					sellerr := c.Update(bson.M{"_id": v.Id}, &v)
+
+					if err != nil {
+
+						e := session.DB("v2").C("ErrorLog").With(session)
+						e.Insert(&db.ErrorLog{Description: "Place sell order", Error: sellerr.Error(), Time: time.Now()})
+
+					}
 				}
-				v.Sell.UUID = uuid
-				v.Sell.Status = "selling"
-				v.Status = "selling"
-				v.Sell.Rate = rate
-				v.Sell.Quantity = quantity
-				v.Sell.Fee = ofee
-				v.Sell.Total = total
-				
-
-				sellerr := c.Update(bson.M{ "_id" : v.Id}, &v)
-
-				if err != nil {
-
-					e := session.DB("v2").C("ErrorLog").With(session)
-					e.Insert(&db.ErrorLog{Description:"Place sell order", Error:sellerr.Error(), Time:time.Now()})
-
-				}
-
 
 			}
 
