@@ -64,13 +64,13 @@ func updateWallet(){
 
 }
 
-func  refreshBTCBalance() {
+func  refreshWallet() {
 
 	for t := range time.NewTicker(time.Minute).C {
 		bAPI := bittrex.New(API_KEY, API_SECRET)
 		session := mydb.Session.Clone()
 		defer session.Close()
-		btc, err := bAPI.GetBalance("BTC")
+		wallet, err := bAPI.GetBalances()
 		if err != nil{
 
 			e := session.DB("v2").C("ErrorLog").With(session)
@@ -80,7 +80,10 @@ func  refreshBTCBalance() {
 
 
 		c := session.DB("v2").C("WalletBalance").With(session)
-		c.Update(bson.M{"currency":"BTC"}, bson.M{"$set" :bson.M{"balance":btc.Balance, "available":btc.Available}})
+		for _,v := range wallet{
+			c.Update(bson.M{"currency":v.Currency}, bson.M{"$set" :bson.M{"balance":v.Balance, "available":v.Available}})
+		}
+
 
 		JobChannel <- t
 	}
@@ -148,7 +151,7 @@ func main() {
 
 	go refreshOrder()
 
-	go refreshBTCBalance()
+	go refreshWallet()
 
 
 	for j:= range JobChannel{

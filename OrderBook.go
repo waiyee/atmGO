@@ -9,6 +9,7 @@ import (
 	"atm/db"
 
 	"gopkg.in/mgo.v2/bson"
+	"strings"
 )
 
 var minTotal = float64(0.00060000)
@@ -149,7 +150,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 				boughtOrder := []db.Orders{}
 				err = c.Find(bson.M{
 					"marketname" : markets[i],
-					"status" : "bought",
+					"status" : bson.M{"$in" : []string{"buying", "bought"}},
 
 				}).All(&boughtOrder)
 
@@ -228,7 +229,23 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					// place sell order at bid rate
 					sellOrder := &boughtOrder[0]
 					rate := orderBook.Buy[0].Rate
-					quantity := sellOrder.Buy.Quantity
+					var ThisBalance WalletBalance
+					d := session.DB("v2").C("WalletBalance").With(session)
+					err = d.Find(bson.M{
+						"currency" : strings.Split(markets[i], "-")[1],
+					}).Select(bson.M{"available":1}).One(&ThisBalance)
+					if err != nil{
+						e := session.DB("v2").C("ErrorLog").With(session)
+						e.Insert(&db.ErrorLog{Description:"get this wallet balance ", Error:err.Error(), Time:time.Now()})
+					}
+
+					var quantity float64
+					if ThisBalance.Available > 0 {
+						quantity = ThisBalance.Available
+					}else{
+						quantity = sellOrder.Buy.Quantity
+					}
+
 					ofee := (rate * quantity) * fee
 					total := (rate*quantity) - ofee
 					wallet := BTCBalance.Available + total
@@ -352,10 +369,51 @@ func refreshOrder(){
 					} else {
 						// cancel buy order
 						if v.Status == "buying" {
-							canerr := bapi.CancelOrder(v.Buy.UUID)
-							if canerr != nil {
+							canberr := bapi.CancelOrder(v.Buy.UUID)
+							if canberr != nil {
 								e := session.DB("v2").C("ErrorLog").With(session)
-								e.Insert(&db.ErrorLog{Description: "Cancel order - API ", Error: canerr.Error(), Time: time.Now()})
+								e.Insert(&db.ErrorLog{Description: "Cancel order - API ", Error: canberr.Error(), Time: time.Now()})
+							}
+						} else  if v.Status == "selling"{
+							canserr := bapi.CancelOrder(v.Buy.UUID)
+							if canserr != nil {
+								e := session.DB("v2").C("ErrorLog").With(session)
+								e.Insert(&db.ErrorLog{Description: "Cancel order - API ", Error: canserr.Error(), Time: time.Now()})
+							}
+							price , err :=bapi.GetTicker(v.MarketName)
+							if err!= nil{
+								e := session.DB("v2").C("ErrorLog").With(session)
+								e.Insert(&db.ErrorLog{Description: "Selling too long sell order get ticker - API ", Error: err.Error(), Time: time.Now()})
+							}
+
+							rate := price.Ask
+							quantity := v.Buy.Quantity
+							ofee := (rate * quantity) * fee
+							total := (rate*quantity) - ofee
+
+							//uuid := "abc"
+							uuid,placeOErr := bapi.SellLimit(v.MarketName,quantity, rate)
+							if placeOErr!= err{
+								e := session.DB("v2").C("ErrorLog").With(session)
+								e.Insert(&db.ErrorLog{Description:"Selling too long sell Limit - API", Error:placeOErr.Error(), Time:time.Now()})
+
+							}
+							v.Sell.UUID = uuid
+							v.Sell.Status = "selling"
+							v.Status = "selling"
+							v.Sell.Rate = rate
+							v.Sell.Quantity = quantity
+							v.Sell.Fee = ofee
+							v.Sell.Total = total
+
+
+							sellerr := c.Update(bson.M{ "_id" : v.Id}, &v)
+
+							if err != nil {
+
+								e := session.DB("v2").C("ErrorLog").With(session)
+								e.Insert(&db.ErrorLog{Description:"Place sell order", Error:sellerr.Error(), Time:time.Now()})
+
 							}
 						}
 					}
@@ -377,7 +435,7 @@ func refreshOrder(){
 				uuid,placeOErr := bapi.SellLimit(v.MarketName,quantity, rate)
 				if placeOErr!= err{
 					e := session.DB("v2").C("ErrorLog").With(session)
-					e.Insert(&db.ErrorLog{Description:"Place Buy Limit - API", Error:placeOErr.Error(), Time:time.Now()})
+					e.Insert(&db.ErrorLog{Description:"24 hours Place sell Limit - API", Error:placeOErr.Error(), Time:time.Now()})
 
 				}
 				v.Sell.UUID = uuid
