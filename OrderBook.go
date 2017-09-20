@@ -287,7 +287,7 @@ func refreshOrder(){
 		c := session.DB("v2").C("OwnOrderBook").With(session)
 		sellbuyOrders := []db.Orders{}
 		cerr := c.Find(bson.M{
-			"status" : bson.M{"$in" : []string{"selling", "buying"}},
+			"status" : bson.M{"$in" : []string{"selling", "buying", "bought"}},
 		}).All(&sellbuyOrders)
 
 		if cerr != nil {
@@ -298,65 +298,110 @@ func refreshOrder(){
 		}
 		bapi := bittrex.New(API_KEY, API_SECRET)
 
-		for _,v := range sellbuyOrders{
+		for _,v := range sellbuyOrders {
 
-			var uuid string
+			var uuid string = ""
 
 			if v.Status == "buying" {
 				uuid = v.Buy.UUID
-			} else {
+			} else if v.Status == "selling" {
 				uuid = v.Sell.UUID
 			}
-
-			// Prepare to update order status from bittrex
-			result, err := bapi.GetOrder(uuid)
-			if err != nil{
-				e := session.DB("v2").C("ErrorLog").With(session)
-				e.Insert(&db.ErrorLog{Description:"Refresh order - API", Error:err.Error(), Time:time.Now()})
-			}else{
-				if !result.IsOpen {
-					if v.Status == "buying" {
-						v.Status = "bought"
-						v.UpdatedAt = time.Now()
-						v.Buy.Rate = result.PricePerUnit
-						v.Buy.Fee = result.CommissionPaid
-						v.Buy.Quantity = result.Quantity
-						v.Buy.Total = result.Price
-						v.Buy.Status = "bought"
-						t, err2 := time.Parse(time.RFC3339, result.Closed)
-						if err2!= nil{
-							fmt.Println("Re-parse error - ", time.Now(), err2)
-							v.Buy.CompleteTime = time.Now()
-						} else{
-							v.Buy.CompleteTime = t
+			if uuid != "" {
+				// Prepare to update order status from bittrex
+				result, err := bapi.GetOrder(uuid)
+				if err != nil {
+					e := session.DB("v2").C("ErrorLog").With(session)
+					e.Insert(&db.ErrorLog{Description: "Refresh order - API", Error: err.Error(), Time: time.Now()})
+				} else {
+					if !result.IsOpen {
+						if v.Status == "buying" {
+							v.Status = "bought"
+							v.UpdatedAt = time.Now()
+							v.Buy.Rate = result.PricePerUnit
+							v.Buy.Fee = result.CommissionPaid
+							v.Buy.Quantity = result.Quantity
+							v.Buy.Total = result.Price
+							v.Buy.Status = "bought"
+							t, err2 := time.Parse(time.RFC3339, result.Closed)
+							if err2 != nil {
+								fmt.Println("Re-parse error - ", time.Now(), err2)
+								v.Buy.CompleteTime = time.Now()
+							} else {
+								v.Buy.CompleteTime = t
+							}
+						} else {
+							v.Status = "sold"
+							v.UpdatedAt = time.Now()
+							v.Sell.Rate = result.PricePerUnit
+							v.Sell.Fee = result.CommissionPaid
+							v.Sell.Quantity = result.Quantity
+							v.Sell.Total = result.Price
+							v.Sell.Status = "sold"
+							t, err2 := time.Parse(time.RFC3339, result.Closed)
+							if err2 != nil {
+								e := session.DB("v2").C("ErrorLog").With(session)
+								e.Insert(&db.ErrorLog{Description: "Re-prase time error", Error: err2.Error(), Time: time.Now()})
+								v.Sell.CompleteTime = time.Now()
+							} else {
+								v.Sell.CompleteTime = t
+							}
 						}
+
+						c.Update(bson.M{"_id": v.Id}, v)
 					} else {
-						v.Status = "sold"
-						v.UpdatedAt = time.Now()
-						v.Sell.Rate = result.PricePerUnit
-						v.Sell.Fee = result.CommissionPaid
-						v.Sell.Quantity = result.Quantity
-						v.Sell.Total = result.Price
-						v.Sell.Status = "sold"
-						t, err2 := time.Parse(time.RFC3339, result.Closed)
-						if err2!= nil{
-							e := session.DB("v2").C("ErrorLog").With(session)
-							e.Insert(&db.ErrorLog{Description:"Re-prase time error", Error:err2.Error(), Time:time.Now()})
-							v.Sell.CompleteTime = time.Now()
-						} else{
-							v.Sell.CompleteTime = t
+						// cancel buy order
+						if v.Status == "buying" {
+							canerr := bapi.CancelOrder(v.Buy.UUID)
+							if canerr != nil {
+								e := session.DB("v2").C("ErrorLog").With(session)
+								e.Insert(&db.ErrorLog{Description: "Cancel order - API ", Error: canerr.Error(), Time: time.Now()})
+							}
 						}
 					}
-
-					c.Update(bson.M{"_id": v.Id}, v)
 				}
+
+			}else if time.Now().Sub(v.Buy.CompleteTime ).Hours() > 24 {
+				price , err :=bapi.GetTicker(v.MarketName)
+				if err!= nil{
+					e := session.DB("v2").C("ErrorLog").With(session)
+					e.Insert(&db.ErrorLog{Description: "24 hours sell order get ticker - API ", Error: err.Error(), Time: time.Now()})
+				}
+
+				rate := price.Ask
+				quantity := v.Buy.Quantity
+				ofee := (rate * quantity) * fee
+				total := (rate*quantity) - ofee
+
+				//uuid := "abc"
+				uuid,placeOErr := bapi.SellLimit(v.MarketName,quantity, rate)
+				if placeOErr!= err{
+					e := session.DB("v2").C("ErrorLog").With(session)
+					e.Insert(&db.ErrorLog{Description:"Place Buy Limit - API", Error:placeOErr.Error(), Time:time.Now()})
+
+				}
+				v.Sell.UUID = uuid
+				v.Sell.Status = "selling"
+				v.Status = "selling"
+				v.Sell.Rate = rate
+				v.Sell.Quantity = quantity
+				v.Sell.Fee = ofee
+				v.Sell.Total = total
+				
+
+				sellerr := c.Update(bson.M{ "_id" : v.Id}, &v)
+
+				if err != nil {
+
+					e := session.DB("v2").C("ErrorLog").With(session)
+					e.Insert(&db.ErrorLog{Description:"Place sell order", Error:sellerr.Error(), Time:time.Now()})
+
+				}
+
+
 			}
 
 		}
-
-
-
-
 
 
 
