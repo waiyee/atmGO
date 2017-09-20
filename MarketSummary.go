@@ -54,10 +54,10 @@ func loopGetSummary() {
 			for _,v:= range markets {
 				thisSM.Markets[v.MarketName] = v
 
-				err := d.Update(bson.M{"MarketName":v.MarketName}, bson.M{"$set" : bson.M{"CurrentRate": v.Last, "UpdatedAt": time.Now()}})
+				err := d.Update(bson.M{"marketname":v.MarketName}, bson.M{"$set" : bson.M{"currentrate": v.Last, "updatedat": time.Now()}})
 				if err != nil {
 					error := session.DB("v2").C("ErrorLog").With(session)
-					error.Insert(&db.ErrorLog{Description:"Place buy order", Error:err.Error(), Time:time.Now()})
+					error.Insert(&db.ErrorLog{Description:"Update current price", Error:err.Error(), Time:time.Now()})
 				}
 
 			}
