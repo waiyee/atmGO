@@ -375,7 +375,7 @@ func refreshOrder(){
 								e.Insert(&db.ErrorLog{Description: "Cancel order - API ", Error: canberr.Error(), Time: time.Now()})
 							}
 						} else  if v.Status == "selling"{
-							canserr := bapi.CancelOrder(v.Buy.UUID)
+							canserr := bapi.CancelOrder(v.Sell.UUID)
 							if canserr != nil {
 								e := session.DB("v2").C("ErrorLog").With(session)
 								e.Insert(&db.ErrorLog{Description: "Cancel order - API ", Error: canserr.Error(), Time: time.Now()})
