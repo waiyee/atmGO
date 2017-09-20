@@ -9,6 +9,7 @@ type Orders struct{
 	Id bson.ObjectId  `json:"id"        bson:"_id,omitempty"`
 	Status string
 	MarketName string
+	CurrentRate float64
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	Buy OrderBook

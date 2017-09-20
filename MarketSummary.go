@@ -44,10 +44,21 @@ func loopGetSummary() {
 				e.Insert(&db.ErrorLog{Description:"Get summaries - API", Error:err.Error(), Time:time.Now()})
 			}
 
+			session := mydb.Session.Clone()
+			defer session.Close()
+			d := session.DB("v2").C("OwnOrderBook").With(session)
+
 			thisSM.Lock.Lock()
 			defer thisSM.Lock.Unlock()
 			for _,v:= range markets {
 				thisSM.Markets[v.MarketName] = v
+
+				err := d.Update(bson.M{"MarketName":v.MarketName}, bson.M{"$set" : bson.M{"CurrentRate": v.Last, "UpdatedAt": time.Now()}})
+				if err != nil {
+					error := session.DB("v2").C("ErrorLog").With(session)
+					error.Insert(&db.ErrorLog{Description:"Place buy order", Error:err.Error(), Time:time.Now()})
+				}
+
 			}
 
 

@@ -193,6 +193,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					buyorder := &db.Orders{
 						Status : "bought",
 						MarketName : markets[i],
+						CurrentRate : rate,
 						CreatedAt: time.Now(),
 						UpdatedAt: time.Now(),
 						Buy: db.OrderBook{
