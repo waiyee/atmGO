@@ -171,11 +171,11 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					e.Insert(&db.ErrorLog{Description:"Get BTC Balance of DB", Error:err.Error(), Time:time.Now()})
 				}
 
-				thresold := float64(0)
-				thresold = 0.2
+				threshold := float64(0)
+				threshold = 0.2
 				minRate := float64(0.000001)
 
-				if final > thresold && len(boughtOrder) == 0 && BTCBalance.Available >= minTotal && orderBook.Sell[0].Rate > minRate{
+				if final > threshold && len(boughtOrder) == 0 && BTCBalance.Available >= minTotal && orderBook.Sell[0].Rate > minRate{
 					fmt.Printf("Bought Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
 					// place buy order at ask rate
 					rate := orderBook.Sell[0].Rate
@@ -222,7 +222,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 						e.Insert(&db.ErrorLog{Description:"Update Wallet Balace @ buy order", Error:err2.Error(), Time:time.Now()})
 
 					}
-				}else if final < thresold*-1 && len(boughtOrder) > 0 {
+				}else if final < -0.1 && len(boughtOrder) > 0 {
 					fmt.Printf("Sold Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
 					// if stocks on hand
 					// place sell order at bid rate
