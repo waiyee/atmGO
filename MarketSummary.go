@@ -55,7 +55,7 @@ func loopGetSummary() {
 				thisSM.Markets[v.MarketName] = v
 
 				err := d.Update(bson.M{"marketname":v.MarketName}, bson.M{"$set" : bson.M{"currentrate": v.Last, "updatedat": time.Now()}})
-				if err != nil {
+				if err != nil && err.Error()!= "not found" {
 					error := session.DB("v2").C("ErrorLog").With(session)
 					error.Insert(&db.ErrorLog{Description:"Update current price", Error:err.Error(), Time:time.Now()})
 				}

@@ -340,9 +340,11 @@ func refreshOrder(){
 							v.Buy.Quantity = result.Quantity
 							v.Buy.Total = result.Price
 							v.Buy.Status = "bought"
-							t, err2 := time.Parse(time.RFC3339, result.Closed)
+							t, err2 := time.Parse("2016-01-02T15:04:05.00", result.Closed)
 							if err2 != nil {
-								fmt.Println("Re-parse error - ", time.Now(), err2)
+								e := session.DB("v2").C("ErrorLog").With(session)
+								e.Insert(&db.ErrorLog{Description: "Re-prase time error", Error: err2.Error(), Time: time.Now()})
+
 								v.Buy.CompleteTime = time.Now()
 							} else {
 								v.Buy.CompleteTime = t
@@ -355,7 +357,7 @@ func refreshOrder(){
 							v.Sell.Quantity = result.Quantity
 							v.Sell.Total = result.Price
 							v.Sell.Status = "sold"
-							t, err2 := time.Parse(time.RFC3339, result.Closed)
+							t, err2 := time.Parse("2016-01-02T15:04:05.00", result.Closed)
 							if err2 != nil {
 								e := session.DB("v2").C("ErrorLog").With(session)
 								e.Insert(&db.ErrorLog{Description: "Re-prase time error", Error: err2.Error(), Time: time.Now()})
