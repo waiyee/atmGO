@@ -342,7 +342,12 @@ func refreshOrder(){
 							v.Buy.Quantity = result.Quantity
 							v.Buy.Total = result.Price
 							v.Buy.Status = "bought"
-							t, err2 := time.Parse("2006-01-02T15:04:05.0000", result.Closed)
+							millise := len(strings.Split(result.Closed, ".")[1])
+							var LayoutLenMill string
+							for i:= 0; i < millise ; i++ {
+								LayoutLenMill += "0"
+							}
+							t, err2 := time.Parse("2006-01-02T15:04:05." + LayoutLenMill, result.Closed)
 							if err2 != nil {
 								e := session.DB("v2").C("ErrorLog").With(session)
 								e.Insert(&db.ErrorLog{Description: "Re-prase time error", Error: err2.Error(), Time: time.Now()})
@@ -359,7 +364,12 @@ func refreshOrder(){
 							v.Sell.Quantity = result.Quantity
 							v.Sell.Total = result.Price
 							v.Sell.Status = "sold"
-							t, err2 := time.Parse("2006-01-02T15:04:05.0000", result.Closed)
+							millise := len(strings.Split(result.Closed, ".")[1])
+							var LayoutLenMill string
+							for i:= 0; i < millise ; i++ {
+								LayoutLenMill += "0"
+							}
+							t, err2 := time.Parse("2006-01-02T15:04:05." + LayoutLenMill, result.Closed)
 							if err2 != nil {
 								e := session.DB("v2").C("ErrorLog").With(session)
 								e.Insert(&db.ErrorLog{Description: "Re-prase time error", Error: err2.Error(), Time: time.Now()})
