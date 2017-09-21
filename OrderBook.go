@@ -400,7 +400,7 @@ func refreshOrder(){
 								e.Insert(&db.ErrorLog{Description: "Selling too long sell order get ticker - API ", Error: err.Error(), Time: time.Now()})
 							}
 
-							rate := price.Ask
+							rate := price.Bid
 							quantity := v.Buy.Quantity
 							ofee := (rate * quantity) * fee
 							total := (rate*quantity) - ofee
