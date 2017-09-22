@@ -343,7 +343,7 @@ func refreshOrder(){
 							v.Buy.Total = result.Price
 							v.Buy.Status = "bought"
 							millise := 0
-							resultSplit := []string(strings.Split(strings.Split(result.Closed, ".")))
+							resultSplit := []string(strings.Split(result.Closed, "."))
 							if len(resultSplit) > 1 {
 								millise = len(resultSplit[1])
 							}
