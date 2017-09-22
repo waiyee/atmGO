@@ -342,7 +342,12 @@ func refreshOrder(){
 							v.Buy.Quantity = result.Quantity
 							v.Buy.Total = result.Price
 							v.Buy.Status = "bought"
-							millise := len(strings.Split(result.Closed, ".")[1])
+							millise := 0
+							resultSplit := []string(strings.Split(strings.Split(result.Closed, ".")))
+							if len(resultSplit) > 1 {
+								millise = len(resultSplit[1])
+							}
+
 							var LayoutLenMill string
 							for i:= 0; i < millise ; i++ {
 								LayoutLenMill += "0"
