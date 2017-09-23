@@ -187,11 +187,11 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 				threshold = 0.2
 				minSellRate := float64(0.0005)
 				stopLossRate := float64(0.00058)
-				//minRate := float64(0.000001)
+				minRate := float64(0.000001)
 
 				//fmt.Printf("Market %v Final %f MarketBTC %f minSellRate %f \n", markets[i], final, MarketBTCEST, minSellRate)
 
-				if final > threshold && MarketBTCEST < minSellRate && BTCBalance.Available >= minTotal {
+				if final > threshold && MarketBTCEST < minSellRate && BTCBalance.Available >= minTotal && orderBook.Sell[0].Rate > minRate{
 					// buy signal
 					fmt.Printf("Bought Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
 					// place buy order at ask rate
