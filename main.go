@@ -83,6 +83,14 @@ func  refreshWallet()(result bool){
 			e.Insert(&db.ErrorLog{Description:"Update wallet ", Error:err2.Error(), Time:time.Now()})
 			result = false
 			return
+		} else if err2.Error() == "not found"{
+			err3 := c.Insert(&v)
+			if err3 != nil {
+				e := session.DB("v2").C("ErrorLog").With(session)
+				e.Insert(&db.ErrorLog{Description: "Insert non exists wallet ", Error: err3.Error(), Time: time.Now()})
+				result = false
+				return
+			}
 		}
 	}
 
