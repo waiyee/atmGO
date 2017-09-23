@@ -161,9 +161,11 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					"currency" : strings.Split(markets[i], "-")[1],
 				}).Select(bson.M{"available":1}).One(&MarketBalance)
 
-				if err != nil{
+				if err != nil && err.Error() != "not found"{
 					e := session.DB("v2").C("ErrorLog").With(session)
 					e.Insert(&db.ErrorLog{Description:"Get Market Balance in DB", Error:err.Error(), Time:time.Now()})
+				}else{
+					MarketBalance.Available = 0
 				}
 
 				thisSM.Lock.Lock()
@@ -193,7 +195,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					rate := orderBook.Sell[0].Rate
 					quantity := (minTotal * (1-fee)) / rate
 
-					tradeHelper.BuyHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bittrex, mydb, "Buy Signal")
+					tradeHelper.BuyHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bapi, mydb, "Buy Signal")
 
 				}else if final < -0.1 && MarketBTCEST >= minSellRate {
 					fmt.Printf("Sold Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
@@ -202,7 +204,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					rate := orderBook.Buy[0].Rate
 					quantity := MarketBalance.Available
 
-					tradeHelper.SellHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bittrex, mydb, "Sell Signal")
+					tradeHelper.SellHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bapi, mydb, "Sell Signal")
 
 				}else if MarketBTCEST >= minSellRate && MarketBTCEST < stopLossRate{
 					fmt.Printf("Sold Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
@@ -211,7 +213,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					rate := orderBook.Buy[0].Rate
 					quantity := MarketBalance.Available
 
-					tradeHelper.SellHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bittrex, mydb, "Stop Loss")
+					tradeHelper.SellHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bapi, mydb, "Stop Loss")
 				}
 
 

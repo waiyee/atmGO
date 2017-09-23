@@ -52,9 +52,15 @@ func BuyHelper(rate float64, quantity float64, market string, btcbalance float64
 			e := session.DB("v2").C("ErrorLog").With(session)
 			e.Insert(&db.ErrorLog{Description: "Update Wallet BTC Balance @ buy order", Error: err2.Error(), Time: time.Now()})
 		}
-		if err3 != nil {
+		if err3 != nil && err3.Error() != "not found"{
 			e := session.DB("v2").C("ErrorLog").With(session)
 			e.Insert(&db.ErrorLog{Description: "Update Wallet Market Balance @ buy order", Error: err3.Error(), Time: time.Now()})
+		}else {
+			err4 := d.Insert(bson.M{"currency": strings.Split(market, "-")[1]}, bson.M{"$set": bson.M{"available": 0}})
+			if err4 != nil{
+				e := session.DB("v2").C("ErrorLog").With(session)
+				e.Insert(&db.ErrorLog{Description: "Insert Wallet Market Balance @ buy order", Error: err4.Error(), Time: time.Now()})
+			}
 		}
 	}
 }

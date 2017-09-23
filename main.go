@@ -78,7 +78,7 @@ func  refreshWallet()(result bool){
 	c := session.DB("v2").C("WalletBalance").With(session)
 	for _,v := range wallet{
 		err2 := c.Update(bson.M{"currency":v.Currency}, bson.M{"$set" :bson.M{"balance":v.Balance, "available":v.Available}})
-		if err2 != nil {
+		if err2 != nil && err2.Error() != "not found"{
 			e := session.DB("v2").C("ErrorLog").With(session)
 			e.Insert(&db.ErrorLog{Description:"Update wallet ", Error:err.Error(), Time:time.Now()})
 			result = false
