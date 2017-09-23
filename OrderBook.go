@@ -276,12 +276,16 @@ func refreshOrder(){
 							v.Fee = result.CommissionPaid
 							v.Quantity = result.Quantity
 							v.Total = result.Price
-							millise := len(strings.Split(result.Closed, ".")[1])
+							a := strings.Split(result.Closed, ".")
 							var LayoutLenMill string
-							for i:= 0; i < millise ; i++ {
-								LayoutLenMill += "0"
+							if len(a) > 1 {
+								millise := len(a[1])
+								LayoutLenMill = "."
+								for i := 0; i < millise; i++ {
+									LayoutLenMill += "0"
+								}
 							}
-							t, err2 := time.Parse("2006-01-02T15:04:05." + LayoutLenMill, result.Closed)
+							t, err2 := time.Parse("2006-01-02T15:04:05" + LayoutLenMill, result.Closed)
 							if err2 != nil {
 								e := session.DB("v2").C("ErrorLog").With(session)
 								e.Insert(&db.ErrorLog{Description: "Re-prase time error", Error: err2.Error(), Time: time.Now()})
@@ -296,12 +300,16 @@ func refreshOrder(){
 							v.Fee = result.CommissionPaid
 							v.Quantity = result.Quantity
 							v.Total = result.Price
-							millise := len(strings.Split(result.Closed, ".")[1])
+							a := strings.Split(result.Closed, ".")
 							var LayoutLenMill string
-							for i:= 0; i < millise ; i++ {
-								LayoutLenMill += "0"
+							if len(a) > 1 {
+								millise := len(a[1])
+								LayoutLenMill = "."
+								for i := 0; i < millise; i++ {
+									LayoutLenMill += "0"
+								}
 							}
-							t, err2 := time.Parse("2006-01-02T15:04:05." + LayoutLenMill, result.Closed)
+							t, err2 := time.Parse("2006-01-02T15:04:05" + LayoutLenMill, result.Closed)
 							if err2 != nil {
 								e := session.DB("v2").C("ErrorLog").With(session)
 								e.Insert(&db.ErrorLog{Description: "Re-prase time error", Error: err2.Error(), Time: time.Now()})
