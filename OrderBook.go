@@ -189,6 +189,8 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 				stopLossRate := float64(0.00058)
 				//minRate := float64(0.000001)
 
+				//fmt.Printf("Market %v Final %f MarketBTC %f minSellRate %f \n", markets[i], final, MarketBTCEST, minSellRate)
+
 				if final > threshold && MarketBTCEST < minSellRate && BTCBalance.Available >= minTotal {
 					// buy signal
 					fmt.Printf("Bought Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
@@ -313,7 +315,7 @@ func refreshOrder(){
 							e := session.DB("v2").C("ErrorLog").With(session)
 							e.Insert(&db.ErrorLog{Description: "Update order - ", Error: err3.Error(), Time: time.Now()})
 						}
-					} else if result.QuantityRemaining != 0 && result.QuantityRemaining != result.Quantity{
+					} else if result.QuantityRemaining != 0 && result.QuantityRemaining == result.Quantity{
 						// cancel buy order
 						if v.Status == "buying" {
 							canberr := bapi.CancelOrder(v.UUID)
