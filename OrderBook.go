@@ -161,13 +161,14 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					"currency" : strings.Split(markets[i], "-")[1],
 				}).Select(bson.M{"available":1}).One(&MarketBalance)
 
+
 				if err != nil && err.Error() != "not found"{
 					e := session.DB("v2").C("ErrorLog").With(session)
 					e.Insert(&db.ErrorLog{Description:"Get Market Balance in DB", Error:err.Error(), Time:time.Now()})
-				}else{
+				}else if err !=nil{
 					MarketBalance.Available = 0
 				}
-
+				
 				thisSM.Lock.Lock()
 				MarketBTCEST := MarketBalance.Available * thisSM.Markets[markets[i]].Last
 				thisSM.Lock.Unlock()
