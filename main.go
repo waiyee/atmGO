@@ -6,7 +6,6 @@ import (
 	"time"
 	"os"
 	"os/signal"
-//	"atm/calculation"
 	"syscall"
 	"sync"
 	"atm/db"
@@ -21,23 +20,19 @@ var BTCMarkets []string
 // Receives the change in the number of goroutines
 var JobChannel = make(chan time.Time)
 
-type thisSecondMarket struct {
+type ForSecondMarket struct {
 	Markets map[string]bittrex.MarketSummary
 	Lock sync.Mutex
 }
 
-type lastSecondMarket struct {
-	Markets map[string]bittrex.MarketSummary
-	Lock sync.Mutex
-}
 
 type MarketMPB struct {
 	Markets map[string]float64
 	Lock sync.Mutex
 }
 
-var thisSM thisSecondMarket
-var lastSM lastSecondMarket
+var thisSM ForSecondMarket
+var lastSM ForSecondMarket
 var MMPB MarketMPB
 var fee float64 = 0.0025
 
@@ -64,29 +59,35 @@ func updateWallet(){
 
 }
 
-func  refreshWallet() {
+func  refreshWallet()(result bool){
 
-	for t := range time.NewTicker(time.Minute).C {
-		bAPI := bittrex.New(API_KEY, API_SECRET)
-		session := mydb.Session.Clone()
-		defer session.Close()
-		wallet, err := bAPI.GetBalances()
-		if err != nil{
+	result = true
 
-			e := session.DB("v2").C("ErrorLog").With(session)
-			e.Insert(&db.ErrorLog{Description:"Refresh BTC balance - API", Error:err.Error(), Time:time.Now()})
-
-		}
-
-
-		c := session.DB("v2").C("WalletBalance").With(session)
-		for _,v := range wallet{
-			c.Update(bson.M{"currency":v.Currency}, bson.M{"$set" :bson.M{"balance":v.Balance, "available":v.Available}})
-		}
-
-
-		JobChannel <- t
+	bAPI := bittrex.New(API_KEY, API_SECRET)
+	session := mydb.Session.Clone()
+	defer session.Close()
+	wallet, err := bAPI.GetBalances()
+	if err != nil{
+		e := session.DB("v2").C("ErrorLog").With(session)
+		e.Insert(&db.ErrorLog{Description:"Refresh BTC balance - API", Error:err.Error(), Time:time.Now()})
+		result = false
+		return
 	}
+
+
+	c := session.DB("v2").C("WalletBalance").With(session)
+	for _,v := range wallet{
+		err2 := c.Update(bson.M{"currency":v.Currency}, bson.M{"$set" :bson.M{"balance":v.Balance, "available":v.Available}})
+		if err2 != nil {
+			e := session.DB("v2").C("ErrorLog").With(session)
+			e.Insert(&db.ErrorLog{Description:"Update wallet ", Error:err.Error(), Time:time.Now()})
+			result = false
+			return
+		}
+	}
+
+	return
+
 }
 /**
  * Used to refresh the available markets in bittrex, once per program should good enough
@@ -151,7 +152,7 @@ func main() {
 
 	go refreshOrder()
 
-	go refreshWallet()
+
 
 
 	for j:= range JobChannel{

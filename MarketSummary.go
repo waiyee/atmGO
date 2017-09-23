@@ -47,7 +47,7 @@ func loopGetSummary() {
 
 			session := mydb.Session.Clone()
 			defer session.Close()
-			d := session.DB("v2").C("OwnOrderBook").With(session)
+			d := session.DB("v2").C("OwnOrderBook2").With(session)
 
 			thisSM.Lock.Lock()
 			defer thisSM.Lock.Unlock()

@@ -7,7 +7,7 @@ import (
 	"atm/bittrex"
 
 	"atm/db"
-
+	"atm/tradeHelper"
 	"gopkg.in/mgo.v2/bson"
 	"strings"
 )
@@ -38,12 +38,25 @@ func loopGetOrderBook()  {
 				OrderMarkets = append(OrderMarkets, BTCMarkets[i])
 			}
 
+			for true{
+				result := refreshWallet()
+				if result {
+					break
+				}
+			}
+
 		} else {
 			start = 0
 			end = -1 + limit
 			OrderMarkets = BTCMarkets[start:end+1]
-		}
 
+			for true{
+				result := refreshWallet()
+				if result {
+					break
+				}
+			}
+		}
 
 		go periodicGetOrderBook(t, OrderMarkets)
 		JobChannel <- t
@@ -63,7 +76,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 
 	obRate := 0.125
 
-	bittrex := bittrex.New(API_KEY, API_SECRET)
+	bapi := bittrex.New(API_KEY, API_SECRET)
 
 	for i := 0; i < len(markets); i++ {
 		wg.Add(1)
@@ -71,7 +84,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 			session := mydb.Session.Clone()
 			defer session.Close()
 
-			orderBook, err := bittrex.GetOrderBook(markets[i], "both")
+			orderBook, err := bapi.GetOrderBook(markets[i], "both")
 			if err != nil {
 
 				e := session.DB("v2").C("ErrorLog").With(session)
@@ -135,152 +148,70 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 				Spread := orderBook.Sell[0].Rate - orderBook.Buy[0].Rate
 				Spread = Spread * 100000000
 				MMPB.Lock.Lock()
-				defer MMPB.Lock.Unlock()
 				MPB := MMPB.Markets[markets[i]]
-
+				MMPB.Lock.Unlock()
 				final := (VOI / Spread) + (OIR / Spread ) + (MPB / Spread)
 
+				//c := session.DB("v2").C("OwnOrderBook").With(session)
 
-				c := session.DB("v2").C("OwnOrderBook").With(session)
 
-				/** final may need to adjust to obtain a better result
-					e.g. (final / 10000000) > 0.2
-					need to test
-				*/
-				boughtOrder := []db.Orders{}
-				err = c.Find(bson.M{
-					"marketname" : markets[i],
-					"status" : bson.M{"$in" : []string{"buying", "bought"}},
-
-				}).All(&boughtOrder)
-
+				d := session.DB("v2").C("WalletBalance").With(session)
+				var MarketBalance WalletBalance
+				err = d.Find(bson.M{
+					"currency" : strings.Split(markets[i], "-")[1],
+				}).Select(bson.M{"available":1}).One(&MarketBalance)
 
 				if err != nil{
-
 					e := session.DB("v2").C("ErrorLog").With(session)
-					e.Insert(&db.ErrorLog{Description:"Periodic get order Select bought orders", Error:err.Error(), Time:time.Now()})
-
+					e.Insert(&db.ErrorLog{Description:"Get Market Balance in DB", Error:err.Error(), Time:time.Now()})
 				}
+
+				thisSM.Lock.Lock()
+				MarketBTCEST := MarketBalance.Available * thisSM.Markets[markets[i]].Last
+				thisSM.Lock.Unlock()
+
 				var BTCBalance WalletBalance
-				d := session.DB("v2").C("WalletBalance").With(session)
+
 				err = d.Find(bson.M{
 					"currency" : "BTC",
 				}).Select(bson.M{"available":1}).One(&BTCBalance)
 				if err != nil{
-
 					e := session.DB("v2").C("ErrorLog").With(session)
-					e.Insert(&db.ErrorLog{Description:"Get BTC Balance of DB", Error:err.Error(), Time:time.Now()})
+					e.Insert(&db.ErrorLog{Description:"Get BTC Balance in DB", Error:err.Error(), Time:time.Now()})
 				}
 
 				threshold := float64(0)
 				threshold = 0.2
-				minRate := float64(0.000001)
+				minSellRate := float64(0.0005)
+				stopLossRate := float64(0.00058)
+				//minRate := float64(0.000001)
 
-				if final > threshold && len(boughtOrder) == 0 && BTCBalance.Available >= minTotal && orderBook.Sell[0].Rate > minRate{
+				if final > threshold && MarketBTCEST < minTotal && BTCBalance.Available >= minTotal {
+					// buy signal
 					fmt.Printf("Bought Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
 					// place buy order at ask rate
 					rate := orderBook.Sell[0].Rate
-					// Attention for not enough balance?
 					quantity := (minTotal * (1-fee)) / rate
-					//uuid := "xyz" // get from bittrex api
-					uuid,placeOErr := bittrex.BuyLimit(markets[i],quantity, rate)
-					if placeOErr!= err{
-					e := session.DB("v2").C("ErrorLog").With(session)
-					e.Insert(&db.ErrorLog{Description:"Place Buy Limit - API", Error:placeOErr.Error(), Time:time.Now()})
 
-					} else {
-						ofee := rate * quantity * fee
-						total := ( rate * quantity ) + ofee
-						wallet := BTCBalance.Available - total
-						buyorder := &db.Orders{
-							Status:      "buying",
-							MarketName:  markets[i],
-							CurrentRate: rate,
-							CreatedAt:   time.Now(),
-							UpdatedAt:   time.Now(),
-							Buy: db.OrderBook{
-								UUID:      uuid,
-								Status:    "buying",
-								Quantity:  quantity,
-								Rate:      rate,
-								Fee:       ofee,
-								Total:     total,
-								OrderTime: time.Now(),
-								Final:     final,
-							},
-						}
-						err := c.Insert(&buyorder)
-						err2 := d.Update(bson.M{"currency": "BTC"}, bson.M{"$set": bson.M{"available": wallet}})
-						if err != nil {
+					tradeHelper.BuyHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bittrex, mydb, "Buy Signal")
 
-							e := session.DB("v2").C("ErrorLog").With(session)
-							e.Insert(&db.ErrorLog{Description: "Place buy order", Error: err.Error(), Time: time.Now()})
-
-						}
-						if err2 != nil {
-
-							e := session.DB("v2").C("ErrorLog").With(session)
-							e.Insert(&db.ErrorLog{Description: "Update Wallet Balace @ buy order", Error: err2.Error(), Time: time.Now()})
-
-						}
-					}
-				}else if final < -0.1 && len(boughtOrder) > 0 {
+				}else if final < -0.1 && MarketBTCEST >= minSellRate {
 					fmt.Printf("Sold Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
 					// if stocks on hand
 					// place sell order at bid rate
-					sellOrder := &boughtOrder[0]
 					rate := orderBook.Buy[0].Rate
-					var ThisBalance WalletBalance
-					d := session.DB("v2").C("WalletBalance").With(session)
-					err = d.Find(bson.M{
-						"currency" : strings.Split(markets[i], "-")[1],
-					}).Select(bson.M{"available":1}).One(&ThisBalance)
-					if err != nil{
-						e := session.DB("v2").C("ErrorLog").With(session)
-						e.Insert(&db.ErrorLog{Description:"get this wallet balance ", Error:err.Error(), Time:time.Now()})
-					}
+					quantity := MarketBalance.Available
 
-					var quantity float64
-					if ThisBalance.Available > 0 {
-						quantity = ThisBalance.Available
-					}else{
-						quantity = sellOrder.Buy.Quantity
-					}
+					tradeHelper.SellHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bittrex, mydb, "Sell Signal")
 
-					ofee := (rate * quantity) * fee
-					total := (rate*quantity) - ofee
-					wallet := BTCBalance.Available + total
-					//uuid := "abc"
-					uuid,placeOErr := bittrex.SellLimit(markets[i],quantity, rate)
-					if placeOErr!= err{
-						e := session.DB("v2").C("ErrorLog").With(session)
-					e.Insert(&db.ErrorLog{Description:"Place Buy Limit - API", Error:placeOErr.Error(), Time:time.Now()})
+				}else if MarketBTCEST >= minSellRate && MarketBTCEST < stopLossRate{
+					fmt.Printf("Sold Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
+					// if stocks on hand
+					// place sell order at bid rate
+					rate := orderBook.Buy[0].Rate
+					quantity := MarketBalance.Available
 
-					}else {
-						sellOrder.Sell.UUID = uuid
-						sellOrder.Sell.Status = "selling"
-						sellOrder.Status = "selling"
-						sellOrder.Sell.Rate = rate
-						sellOrder.Sell.Quantity = quantity
-						sellOrder.Sell.Fee = ofee
-						sellOrder.Sell.Total = total
-						sellOrder.Sell.Final = final
-
-						err := c.Update(bson.M{"_id": boughtOrder[0].Id}, &sellOrder)
-						err2 := d.Update(bson.M{"currency": "BTC"}, bson.M{"$set": bson.M{"available": wallet}})
-						if err != nil {
-
-							e := session.DB("v2").C("ErrorLog").With(session)
-							e.Insert(&db.ErrorLog{Description: "Place sell order", Error: err.Error(), Time: time.Now()})
-
-						}
-						if err2 != nil {
-
-							e := session.DB("v2").C("ErrorLog").With(session)
-							e.Insert(&db.ErrorLog{Description: "Update Wallet @ sell order", Error: err2.Error(), Time: time.Now()})
-
-						}
-					}
+					tradeHelper.SellHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bittrex, mydb, "Stop Loss")
 				}
 
 
@@ -303,14 +234,13 @@ func refreshOrder(){
 
 		session := mydb.Session.Clone()
 		defer session.Close()
-		c := session.DB("v2").C("OwnOrderBook").With(session)
+		c := session.DB("v2").C("OwnOrderBook2").With(session)
 		sellbuyOrders := []db.Orders{}
 		cerr := c.Find(bson.M{
-			"status" : bson.M{"$in" : []string{"selling", "buying", "bought"}},
+			"status" : bson.M{"$in" : []string{"selling", "buying"}},
 		}).All(&sellbuyOrders)
 
 		if cerr != nil {
-
 			e := session.DB("v2").C("ErrorLog").With(session)
 			e.Insert(&db.ErrorLog{Description:"Get selling buying orders", Error:cerr.Error(), Time:time.Now()})
 
@@ -322,9 +252,9 @@ func refreshOrder(){
 			var uuid string = ""
 
 			if v.Status == "buying" {
-				uuid = v.Buy.UUID
+				uuid = v.UUID
 			} else if v.Status == "selling" {
-				uuid = v.Sell.UUID
+				uuid = v.UUID
 			}
 			if uuid != "" {
 				// Prepare to update order status from bittrex
@@ -337,11 +267,10 @@ func refreshOrder(){
 						if v.Status == "buying" {
 							v.Status = "bought"
 							v.UpdatedAt = time.Now()
-							v.Buy.Rate = result.PricePerUnit
-							v.Buy.Fee = result.CommissionPaid
-							v.Buy.Quantity = result.Quantity
-							v.Buy.Total = result.Price
-							v.Buy.Status = "bought"
+							v.Rate = result.PricePerUnit
+							v.Fee = result.CommissionPaid
+							v.Quantity = result.Quantity
+							v.Total = result.Price
 							millise := len(strings.Split(result.Closed, ".")[1])
 							var LayoutLenMill string
 							for i:= 0; i < millise ; i++ {
@@ -351,19 +280,17 @@ func refreshOrder(){
 							if err2 != nil {
 								e := session.DB("v2").C("ErrorLog").With(session)
 								e.Insert(&db.ErrorLog{Description: "Re-prase time error", Error: err2.Error(), Time: time.Now()})
-
-								v.Buy.CompleteTime = time.Now()
+								v.CompleteTime = time.Now()
 							} else {
-								v.Buy.CompleteTime = t
+								v.CompleteTime = t
 							}
 						} else {
 							v.Status = "sold"
 							v.UpdatedAt = time.Now()
-							v.Sell.Rate = result.PricePerUnit
-							v.Sell.Fee = result.CommissionPaid
-							v.Sell.Quantity = result.Quantity
-							v.Sell.Total = result.Price
-							v.Sell.Status = "sold"
+							v.Rate = result.PricePerUnit
+							v.Fee = result.CommissionPaid
+							v.Quantity = result.Quantity
+							v.Total = result.Price
 							millise := len(strings.Split(result.Closed, ".")[1])
 							var LayoutLenMill string
 							for i:= 0; i < millise ; i++ {
@@ -373,36 +300,50 @@ func refreshOrder(){
 							if err2 != nil {
 								e := session.DB("v2").C("ErrorLog").With(session)
 								e.Insert(&db.ErrorLog{Description: "Re-prase time error", Error: err2.Error(), Time: time.Now()})
-								v.Sell.CompleteTime = time.Now()
+								v.CompleteTime = time.Now()
 							} else {
-								v.Sell.CompleteTime = t
+								v.CompleteTime = t
 							}
 						}
-
-						c.Update(bson.M{"_id": v.Id}, v)
-					} else {
+						err3 := c.Update(bson.M{"_id": v.Id}, v)
+						if err3 != nil {
+							e := session.DB("v2").C("ErrorLog").With(session)
+							e.Insert(&db.ErrorLog{Description: "Update order - ", Error: err3.Error(), Time: time.Now()})
+						}
+					} else if result.QuantityRemaining != 0 && result.QuantityRemaining != result.Quantity{
 						// cancel buy order
 						if v.Status == "buying" {
-							canberr := bapi.CancelOrder(v.Buy.UUID)
+							canberr := bapi.CancelOrder(v.UUID)
 							if canberr != nil {
 								e := session.DB("v2").C("ErrorLog").With(session)
 								e.Insert(&db.ErrorLog{Description: "Cancel order - API ", Error: canberr.Error(), Time: time.Now()})
 							}
 						} else  if v.Status == "selling"{
-							canserr := bapi.CancelOrder(v.Sell.UUID)
+							canserr := bapi.CancelOrder(v.UUID)
 							if canserr != nil {
 								e := session.DB("v2").C("ErrorLog").With(session)
 								e.Insert(&db.ErrorLog{Description: "Cancel order - API ", Error: canserr.Error(), Time: time.Now()})
-							}
-							price , err :=bapi.GetTicker(v.MarketName)
-							if err!= nil{
-								e := session.DB("v2").C("ErrorLog").With(session)
-								e.Insert(&db.ErrorLog{Description: "Selling too long sell order get ticker - API ", Error: err.Error(), Time: time.Now()})
-							}
+							} else {
+								price , err :=bapi.GetTicker(v.MarketName)
+								if err!= nil{
+									e := session.DB("v2").C("ErrorLog").With(session)
+									e.Insert(&db.ErrorLog{Description: "Selling too long sell order get ticker - API ", Error: err.Error(), Time: time.Now()})
+								} else {
 
-							rate := price.Ask
-							quantity := v.Buy.Quantity
-							ofee := (rate * quantity) * fee
+									d := session.DB("v2").C("WalletBalance").With(session)
+									var BTCBalance WalletBalance
+
+									err = d.Find(bson.M{
+										"currency": "BTC",
+									}).Select(bson.M{"available": 1}).One(&BTCBalance)
+
+									rate := price.Bid
+									quantity := v.Quantity
+
+									tradeHelper.SellHelper(rate, quantity, v.MarketName, BTCBalance.Available, 0, *bapi, mydb, "Resell non-sell order")
+								}
+							}
+						/*	ofee := (rate * quantity) * fee
 							total := (rate*quantity) - ofee
 
 							//uuid := "abc"
@@ -413,13 +354,12 @@ func refreshOrder(){
 
 							} else {
 
-								v.Sell.UUID = uuid
-								v.Sell.Status = "selling"
+								v.UUID = uuid
 								v.Status = "selling"
-								v.Sell.Rate = rate
-								v.Sell.Quantity = quantity
-								v.Sell.Fee = ofee
-								v.Sell.Total = total
+								v.Rate = rate
+								v.Quantity = quantity
+								v.Fee = ofee
+								v.Total = total
 
 								sellerr := c.Update(bson.M{"_id": v.Id}, &v)
 
@@ -429,12 +369,12 @@ func refreshOrder(){
 									e.Insert(&db.ErrorLog{Description: "Place sell order", Error: sellerr.Error(), Time: time.Now()})
 
 								}
-							}
+							}*/
 						}
 					}
 				}
 
-			}else if time.Now().Sub(v.Buy.CompleteTime ).Hours() > 24 {
+			} /*else if time.Now().Sub(v.Buy.CompleteTime ).Hours() > 24 {
 				price , err :=bapi.GetTicker(v.MarketName)
 				if err!= nil{
 					e := session.DB("v2").C("ErrorLog").With(session)
@@ -471,12 +411,9 @@ func refreshOrder(){
 					}
 				}
 
-			}
+			}*/
 
 		}
-
-
-
 		JobChannel <- t
 	}
 }

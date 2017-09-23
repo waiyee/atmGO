@@ -12,13 +12,7 @@ type Orders struct{
 	CurrentRate float64
 	CreatedAt time.Time
 	UpdatedAt time.Time
-	Buy OrderBook
-	Sell OrderBook
-}
-
-type OrderBook struct{
 	UUID string
-	Status string
 	Quantity float64
 	Rate float64
 	Fee float64
@@ -26,4 +20,7 @@ type OrderBook struct{
 	OrderTime time.Time
 	CompleteTime time.Time
 	Final float64
+	Remark string
 }
+
+
