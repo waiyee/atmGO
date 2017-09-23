@@ -168,7 +168,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 				}else if err !=nil{
 					MarketBalance.Available = 0
 				}
-				
+
 				thisSM.Lock.Lock()
 				MarketBTCEST := MarketBalance.Available * thisSM.Markets[markets[i]].Last
 				thisSM.Lock.Unlock()
