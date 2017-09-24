@@ -187,7 +187,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 				threshold = 0.2
 				minSellRate := float64(0.0005)
 				stopLossRate := float64(0.00058)
-				minRate := float64(0.000001)
+				minRate := float64(0.00001)
 
 				//fmt.Printf("Market %v Final %f MarketBTC %f minSellRate %f \n", markets[i], final, MarketBTCEST, minSellRate)
 
