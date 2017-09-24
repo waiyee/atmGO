@@ -328,7 +328,7 @@ func refreshOrder(){
 							e := session.DB("v2").C("ErrorLog").With(session)
 							e.Insert(&db.ErrorLog{Description: "Update order - ", Error: err3.Error(), Time: time.Now()})
 						}
-					} else if result.QuantityRemaining != 0 && result.QuantityRemaining == result.Quantity{
+					} else if result.QuantityRemaining != 0 && result.QuantityRemaining == result.Quantity || time.Now().Sub(v.OrderTime).Seconds() > 30 {
 						// cancel buy order
 						if v.Status == "buying" {
 							canberr := bapi.CancelOrder(v.UUID)
