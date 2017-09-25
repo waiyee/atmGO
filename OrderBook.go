@@ -201,7 +201,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 
 					tradeHelper.BuyHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bapi, mydb, "Buy Signal")
 
-				}else if final < -0.1 && MarketBTCEST >= minSellRate {
+				}else if final < 0 && MarketBTCEST >= minSellRate {
 					fmt.Printf("Sold Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
 					// if stocks on hand
 					// place sell order at bid rate
