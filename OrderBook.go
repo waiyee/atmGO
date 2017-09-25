@@ -74,7 +74,7 @@ type WalletBalance struct {
 func periodicGetOrderBook(t time.Time, markets []string)  {
 	wg := &sync.WaitGroup{}
 
-	obRate := 0.125
+	obRate := 0.1
 
 	bapi := bittrex.New(API_KEY, API_SECRET)
 
@@ -185,7 +185,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 				}
 
 				threshold := float64(0)
-				threshold = 0.2
+				threshold = 0.3
 				minSellRate := float64(0.0005)
 				stopLossRate := float64(0.00058)
 				minRate := float64(0.00001)
