@@ -210,7 +210,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 
 					tradeHelper.SellHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bapi, mydb, "Sell Signal")
 
-				}else if MarketBTCEST >= minSellRate && MarketBTCEST < stopLossRate{
+				}else if MarketBTCEST >= minSellRate && MarketBTCEST < stopLossRate && final < 0{
 					buyingOrder := []db.Orders{}
 					f := session.DB("v2").C("OwnOrderBook2").With(session)
 					f.Find(bson.M{"market":markets[i], "status" :"buying"}).All(&buyingOrder)
