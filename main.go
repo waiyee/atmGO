@@ -82,7 +82,7 @@ func logWallet(){
 	var WalletBalances []bittrex.Balance
 	estBTCRate := float64(0)
 	err := c.Find(bson.M{"balance" : bson.M{"$gt":0}}).All(&WalletBalances)
-	fmt.Println(WalletBalances)
+	
 	if err != nil{
 		e := session.DB("v2").C("ErrorLog").With(session)
 		e.Insert(&db.ErrorLog{Description:"Find balance Wallet in DB", Error:err.Error(), Time:time.Now()})
