@@ -59,6 +59,56 @@ func updateWallet(){
 
 }
 
+func loopLogWallet(){
+	for t := range time.NewTicker(time.Minute * 20 ).C {
+		go logWallet()
+
+		JobChannel<- t
+	}
+}
+
+type logForBTC struct{
+	LogTime time.Time
+	EstBTC float64
+}
+
+func logWallet(){
+
+	session := mydb.Session.Clone()
+	defer session.Close()
+	c := session.DB("v2").C("WalletBalance").With(session)
+	var WalletBalances []bittrex.Balance
+	estBTCRate := float64(0)
+	err := c.Find(bson.M{"balance" : bson.M{"$gt":0}}).All(&WalletBalances)
+	if err != nil{
+		e := session.DB("v2").C("ErrorLog").With(session)
+		e.Insert(&db.ErrorLog{Description:"Find balance Wallet in DB", Error:err.Error(), Time:time.Now()})
+	}else {
+		for _, v:= range WalletBalances{
+			if v.Currency != "BTC"{
+				marketName := "BTC-" + v.Currency
+				thisSM.Lock.Lock()
+				estBTCRate += v.Balance * thisSM.Markets[marketName].Last
+				thisSM.Lock.Unlock()
+			}else {
+				estBTCRate += v.Balance
+			}
+
+		}
+		d := session.DB("v2").C("LogEstBTC").With(session)
+		err2 := d.Insert(&logForBTC{LogTime:time.Now(), EstBTC:estBTCRate})
+		if err2 != nil {
+			e := session.DB("v2").C("ErrorLog").With(session)
+			e.Insert(&db.ErrorLog{Description:"Insert EST BTC balance in DB", Error:err.Error(), Time:time.Now()})
+		}
+
+	}
+
+
+
+
+}
+
 func  refreshWallet()(result bool){
 
 	result = true
@@ -160,7 +210,7 @@ func main() {
 
 	go refreshOrder()
 
-
+	go loopLogWallet()
 
 
 	for j:= range JobChannel{
