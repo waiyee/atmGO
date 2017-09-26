@@ -60,7 +60,9 @@ func updateWallet(){
 }
 
 func loopLogWallet(){
+
 	for t := range time.NewTicker(time.Minute * 20 ).C {
+
 		go logWallet()
 
 		JobChannel<- t
@@ -80,6 +82,7 @@ func logWallet(){
 	var WalletBalances []bittrex.Balance
 	estBTCRate := float64(0)
 	err := c.Find(bson.M{"balance" : bson.M{"$gt":0}}).All(&WalletBalances)
+	fmt.Println(WalletBalances)
 	if err != nil{
 		e := session.DB("v2").C("ErrorLog").With(session)
 		e.Insert(&db.ErrorLog{Description:"Find balance Wallet in DB", Error:err.Error(), Time:time.Now()})
@@ -204,13 +207,15 @@ func main() {
 	/* Code for listen Ctrl + C to stop the bot*/
 
 	/* async call a job to get summaries */
+	go loopLogWallet()
+
 	go loopGetSummary()
 
 	go loopGetOrderBook()
 
 	go refreshOrder()
 
-	go loopLogWallet()
+
 
 
 	for j:= range JobChannel{
