@@ -187,7 +187,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 				threshold := float64(0)
 				threshold = 0.2
 				minSellRate := float64(0.0005)
-				stopLossRate := float64(0.00058)
+				stopLossRate := float64(0.00059)
 				minRate := float64(0.00001)
 				betSize := float64(0)
 				betSize = minTotal
@@ -195,11 +195,14 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 				if final > threshold {
 					if final < 0.3 {
 						betSize = 0.00055
-					} else if final < 0.5 {
+					}
+					if final > 0.3 {
 						betSize = 0.0006
-					} else if final < 0.7 && BTCBalance.Available >= 0.0008 {
+					}
+					if final >= 0.4 && BTCBalance.Available >= 0.0008 {
 						betSize = 0.0008
-					} else if final > 0.7 && BTCBalance.Available >= 0.001 {
+					}
+					if final >= 0.5 && BTCBalance.Available >= 0.001 {
 						betSize = 0.001
 					}
 				}
