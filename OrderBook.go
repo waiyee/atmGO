@@ -75,6 +75,10 @@ type LogMarketFinal struct {
 	MarketName string
 	Bid float64
 	Ask float64
+	Voi float64
+	Oir float64
+	SPREAD float64
+	Mpb float64
 	Final float64
 }
 
@@ -165,7 +169,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 				//c := session.DB("v2").C("OwnOrderBook").With(session)
 				f := session.DB("v2").C("LogMarketFinal").With(session)
 				err = f.Insert(&LogMarketFinal{LogTime:time.Now(), MarketName:markets[i],
-				Bid: orderBook.Buy[0].Rate, Ask: orderBook.Sell[0].Rate, Final:final})
+				Bid: orderBook.Buy[0].Rate, Ask: orderBook.Sell[0].Rate, Voi:VOI, Oir:OIR, SPREAD:Spread, Mpb: MPB, Final:final})
 				if err!= nil{
 					e := session.DB("v2").C("ErrorLog").With(session)
 					e.Insert(&db.ErrorLog{Description:"Get Market Balance in DB", Error:err.Error(), Time:time.Now()})
