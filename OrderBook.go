@@ -70,6 +70,15 @@ type WalletBalance struct {
 	Available      float64    `json:"available" bson:"available"`
 }
 
+type LogMarketFinal struct {
+	LogTime time.Time
+	MarketName string
+	Bid float64
+	Ask float64
+	Final float64
+}
+
+
 
 func periodicGetOrderBook(t time.Time, markets []string)  {
 	wg := &sync.WaitGroup{}
@@ -154,7 +163,13 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 				final := (VOI / Spread) + (OIR / Spread ) + (MPB / Spread)
 
 				//c := session.DB("v2").C("OwnOrderBook").With(session)
-
+				f := session.DB("v2").C("LogMarketFinal").With(session)
+				err = f.Insert(&LogMarketFinal{LogTime:time.Now(), MarketName:markets[i],
+				Bid: orderBook.Buy[0].Rate, Ask: orderBook.Sell[0].Rate, Final:final})
+				if err!= nil{
+					e := session.DB("v2").C("ErrorLog").With(session)
+					e.Insert(&db.ErrorLog{Description:"Get Market Balance in DB", Error:err.Error(), Time:time.Now()})
+				}
 
 				d := session.DB("v2").C("WalletBalance").With(session)
 				var MarketBalance WalletBalance
@@ -215,7 +230,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					quantity := (betSize * (1-fee)) / rate
 					tradeHelper.BuyHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bapi, mydb, "Buy Signal")
 
-				}else if final < 0.1 && MarketBTCEST >= minSellRate {
+				}else if final < -0.1 && MarketBTCEST >= minSellRate {
 					fmt.Printf("Sold Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
 					// if stocks on hand
 					// place sell order at bid rate
@@ -224,7 +239,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 
 					tradeHelper.SellHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bapi, mydb, "Sell Signal")
 
-				}else if MarketBTCEST >= minSellRate && MarketBTCEST < stopLossRate && final < 0.1 {
+				}else if MarketBTCEST >= minSellRate && MarketBTCEST < stopLossRate && final < 0 {
 					buyingOrder := []db.Orders{}
 					f := session.DB("v2").C("OwnOrderBook2").With(session)
 					f.Find(bson.M{"market":markets[i], "status" :"buying"}).All(&buyingOrder)
