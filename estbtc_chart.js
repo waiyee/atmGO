@@ -6,21 +6,26 @@ var points = "";
 var http = require('http');
 
 
-MongoClient.connect(url, function(err, db) {
-    if (err) throw err;
-    db.collection("LogEstBTC").find({  }).toArray(function(err, result) {
+
+
+//create a server object:
+http.createServer(function (req, res) {
+    MongoClient.connect(url, function(err, db) {
         if (err) throw err;
-        result.forEach(function(e){
-            points = points + "{x:" + e.logtime.getTime() + ", y:" + e.estbtc + "},"
+        db.collection("LogEstBTC").find({  }).toArray(function(err, result) {
+            if (err) throw err;
+            result.forEach(function(e){
+                points = points + "{x:" + e.logtime.getTime() + ", y:" + e.estbtc + "},"
 
-            //var point = {x:e.logtime, y:e.estbtc};
-            //points.push(point);
-            //estbtc.push(e.estbtc);
-        });
-        db.close();
+                //var point = {x:e.logtime, y:e.estbtc};
+                //points.push(point);
+                //estbtc.push(e.estbtc);
+            });
 
-        //create a server object:
-        http.createServer(function (req, res) {
+
+            db.close();
+
+
             res.writeHead(200, {'Content-Type': 'text/html'});
             //res.write('Hello World!'); //write a response to the client
             res.write("<html>\n" +
@@ -73,7 +78,7 @@ MongoClient.connect(url, function(err, db) {
                 "  </div>" +
                 "</body>\n" +
                 "</html>"
-            )
+            );
 
 
 
@@ -81,7 +86,11 @@ MongoClient.connect(url, function(err, db) {
 
             //res.write();
             res.end(); //end the response
-        }).listen(8080); //the server object listens on port 8080
 
+
+        });
     });
-});
+
+
+}).listen(8080); //the server object listens on port 8080
+
