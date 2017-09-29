@@ -1,0 +1,63 @@
+<html>
+   <head>
+      <meta charset="UTF-8">
+      <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.4.0/Chart.min.js"></script>
+
+      <script>
+
+          // A $( document ).ready() block.
+          $( document ).ready(function() {
+              var ctx = $('#myChart');
+
+              //http://127.0.0.1:8080/
+               //var points =[];
+
+              $.ajax({
+                  url: 'http://127.0.0.1:8080/',
+                  dataType: 'JSON',
+                  jsonpCallback: 'callbackFnc',
+                  type: 'GET',
+                  async: false,
+                  crossDomain: true,
+                  success: function (result) {
+
+                      alert(result);
+                      var chart = new Chart(ctx, {
+                          // The type of chart we want to create
+                          type: 'line',
+
+                          // The data for our dataset
+                          data: {
+                              labels: ["January", "February", "March", "April", "May", "June", "July"],
+                              datasets: [{
+                                  label: "My First dataset",
+                                  backgroundColor: 'rgb(255, 99, 132)',
+                                  borderColor: 'rgb(255, 99, 132)',
+                                  data: [0, 10, 5, 2, 20, 30, 45],
+                              }]
+                          },
+
+                          // Configuration options go here
+                          options: {}
+                      });
+                  },
+                  failure: function () { },
+                  complete: function () {
+
+
+                  }
+              });
+
+
+
+          });
+
+//          var ctx = document.getElementById('myChart').getContext('2d');
+
+      </script>
+   </head>
+<body>
+<canvas id="myChart"></canvas>
+</body>
+</html>
