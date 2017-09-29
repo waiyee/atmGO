@@ -1,0 +1,19 @@
+{
+  "name": "atm",
+  "version": "0.0.1",
+  "description": "For Est BTC chart",
+  "main": "estbtc_chart.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://tsuiwynn@bitbucket.org/atm-team/algo-trade-machine-go.git"
+  },
+  "author": "ATM",
+  "license": "ISC",
+  "homepage": "https://bitbucket.org/atm-team/algo-trade-machine-go#readme",
+  "dependencies": {
+    "mongodb": "^2.2.31"
+  }
+}
