@@ -175,7 +175,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 				thisSM.Lock.Unlock()
 				BTCHourlyMarket[markets[i]].Lock.Lock()
 				BTCHourlyMarket[markets[i]].InsertLog(orderBook.Buy[0].Rate, orderBook.Sell[0].Rate, final)
-				fmt.Printf("Market Log: %v , Max A: %f, B: %f, F: %f, Min A: %f, B:, F: %f, Last A: %f, B: %f, F: %f \n", markets[i],
+				fmt.Printf("Market Log: %v , Max A: %f, B: %f, F: %f, Min A: %f, B:%f, F: %f, Last A: %f, B: %f, F: %f \n", markets[i],
 					BTCHourlyMarket[markets[i]].MaxAsk,BTCHourlyMarket[markets[i]].MaxBid,BTCHourlyMarket[markets[i]].MaxFinal,
 					BTCHourlyMarket[markets[i]].MinAsk,BTCHourlyMarket[markets[i]].MinBid,BTCHourlyMarket[markets[i]].MinFinal,
 					BTCHourlyMarket[markets[i]].LastAsk,BTCHourlyMarket[markets[i]].LastBid,BTCHourlyMarket[markets[i]].LastFinal,

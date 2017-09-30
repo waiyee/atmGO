@@ -27,9 +27,9 @@ type hourlyLog struct {
 }
 
 func (h *HourMarketRate) New(){
-	h.MaxAsk = 0
-	h.MaxBid = 0
-	h.MaxFinal = 0
+	h.MaxAsk = -99999
+	h.MaxBid = -99999
+	h.MaxFinal = -99999
 	h.MinAsk = 99999
 	h.MinBid = 99999
 	h.MinFinal = 99999

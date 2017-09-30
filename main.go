@@ -170,6 +170,7 @@ func refreshMarkets(){
 	for _,v := range markets {
 		if v.BaseCurrency == "BTC"{
 			BTCMarkets = append(BTCMarkets, v.MarketName)
+			BTCHourlyMarket[v.MarketName] = &db.HourMarketRate{}
 			BTCHourlyMarket[v.MarketName].New()
 			i++
 		}
