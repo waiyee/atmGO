@@ -2,7 +2,7 @@ var MongoClient = require('mongodb').MongoClient;
 var url = "mongodb://localhost:27017/v2";
 //var logtime =[];
 //var estbtc =[];
-var points = "";
+
 var http = require('http');
 
 
@@ -11,7 +11,9 @@ var http = require('http');
 //create a server object:
 http.createServer(function (req, res) {
     MongoClient.connect(url, function(err, db) {
+
         if (err) throw err;
+        var points = "";
         db.collection("LogEstBTC").find({  }).toArray(function(err, result) {
             if (err) throw err;
             result.forEach(function(e){
@@ -74,7 +76,7 @@ http.createServer(function (req, res) {
                 "      </script>\n" +
                 "   </head>\n" +
                 "<body>\n" +
-                " <div id=\"chartContainer\" style=\"height: 80%; width: 80%;\">\n" +
+                " <div id=\"chartContainer\" style=\"height: 80%; width: 100%;\">\n" +
                 "  </div>" +
                 "</body>\n" +
                 "</html>"
