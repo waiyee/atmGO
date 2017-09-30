@@ -16,7 +16,7 @@ import (
 
 var mydb db.Mydbset
 var BTCMarkets []string
-var BTCHourlyMarket map[string]db.HourMarketRate
+var BTCHourlyMarket map[string]*db.HourMarketRate
 
 // Receives the change in the number of goroutines
 var JobChannel = make(chan time.Time)
@@ -183,6 +183,7 @@ func main() {
 	thisSM.Markets = make(map[string]bittrex.MarketSummary)
 	lastSM.Markets = make(map[string]bittrex.MarketSummary)
 	MMPB.Markets = make(map[string]float64)
+	BTCHourlyMarket = make(map[string]*db.HourMarketRate)
 	// Bittrex client
 	//bAPI := bittrex.New(API_KEY, API_SECRET)
 
