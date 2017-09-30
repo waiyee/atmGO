@@ -16,6 +16,7 @@ import (
 
 var mydb db.Mydbset
 var BTCMarkets []string
+var BTCHourlyMarket map[string]db.HourMarketRate
 
 // Receives the change in the number of goroutines
 var JobChannel = make(chan time.Time)
@@ -169,6 +170,7 @@ func refreshMarkets(){
 	for _,v := range markets {
 		if v.BaseCurrency == "BTC"{
 			BTCMarkets = append(BTCMarkets, v.MarketName)
+			BTCHourlyMarket[v.MarketName].New()
 			i++
 		}
 	}
