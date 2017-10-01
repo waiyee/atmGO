@@ -5,12 +5,12 @@ import (
 	"time"
 )
 
-type RateWithHMR struct{
+type RateWithLock struct{
 	Lock 	sync.Mutex
 	HMR		HourMarketRate
 }
 
-type RateWithMarket struct{
+type RateWithMarketName struct{
 	MarketName string
 	HMR 	HourMarketRate
 }

@@ -16,7 +16,7 @@ import (
 
 var mydb db.Mydbset
 var BTCMarkets []string
-var BTCHourlyMarket map[string]*db.RateWithHMR
+var BTCHourlyMarket map[string]*db.RateWithLock
 
 // Receives the change in the number of goroutines
 var JobChannel = make(chan time.Time)
@@ -171,16 +171,18 @@ func refreshMarkets(){
 		if v.BaseCurrency == "BTC"{
 			BTCMarkets = append(BTCMarkets, v.MarketName)
 
-			var temp db.HourMarketRate
+			var temp db.RateWithMarketName
 			h := session.DB("v2").C("LogHourly").With(session)
+
 			err2 := h.Find(bson.M{"marketname":v.MarketName}).One(&temp)
 
+			
 			if err2 != nil && err2.Error() == "not found"{
-				BTCHourlyMarket[v.MarketName] = &db.RateWithHMR{}
+				BTCHourlyMarket[v.MarketName] = &db.RateWithLock{}
 				BTCHourlyMarket[v.MarketName].HMR.New()
-				h.Insert(&db.RateWithMarket{MarketName:v.MarketName, HMR:BTCHourlyMarket[v.MarketName].HMR})
+				h.Insert(&db.RateWithMarketName{MarketName:v.MarketName, HMR:BTCHourlyMarket[v.MarketName].HMR})
 			} else if err2 == nil{
-				BTCHourlyMarket[v.MarketName] = &db.RateWithHMR{HMR:temp}
+				BTCHourlyMarket[v.MarketName] = &db.RateWithLock{HMR:temp.HMR}
 			} else if err2 != nil{
 				e := session.DB("v2").C("ErrorLog").With(session)
 				e.Insert(&db.ErrorLog{Description:"Get Hourly Rate From DB", Error:err2.Error(), Time:time.Now()})
@@ -198,7 +200,7 @@ func main() {
 	thisSM.Markets = make(map[string]bittrex.MarketSummary)
 	lastSM.Markets = make(map[string]bittrex.MarketSummary)
 	MMPB.Markets = make(map[string]float64)
-	BTCHourlyMarket = make(map[string]*db.RateWithHMR)
+	BTCHourlyMarket = make(map[string]*db.RateWithLock)
 	// Bittrex client
 	//bAPI := bittrex.New(API_KEY, API_SECRET)
 

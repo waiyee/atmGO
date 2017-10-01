@@ -182,7 +182,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 				BTCHourlyMarket[markets[i]].HMR.InsertLog(orderBook.Buy[0].Rate, orderBook.Sell[0].Rate, final)
 
 
-				errH := h.Update(bson.M{"marketname":markets[i]}, &db.RateWithMarket{MarketName:markets[i], HMR:BTCHourlyMarket[markets[i]].HMR})
+				errH := h.Update(bson.M{"marketname":markets[i]}, &db.RateWithMarketName{MarketName:markets[i], HMR:BTCHourlyMarket[markets[i]].HMR})
 
 				if errH != nil{
 					e := session.DB("v2").C("ErrorLog").With(session)
