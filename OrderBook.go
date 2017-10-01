@@ -293,7 +293,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					quantity := MarketBalance.Available
 					tradeHelper.SellHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bapi, mydb, "Sell Signal")
 
-				}else if MarketBTCEST >= minSellRate && MarketBTCEST < stopLossRate {
+				}else if MarketBTCEST >= minSellRate && MarketBTCEST < stopLossRate && final < threshold{
 					buyingOrder := []db.Orders{}
 					f := session.DB("v2").C("OwnOrderBook2").With(session)
 					f.Find(bson.M{"market":markets[i], "status" :"buying"}).All(&buyingOrder)
@@ -306,7 +306,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 						tradeHelper.SellHelper(rate, quantity, markets[i], BTCBalance.Available, final, *bapi, mydb, "Stop Loss")
 					}
 				}else if LastRate.LastBid > orderBook.Buy[0].Rate &&
-					LastRate.LastFinal > final && MarketBTCEST >= minSellRate && MarketBTCEST >= betSize*1.025{
+					LastRate.LastFinal > final && MarketBTCEST >= minSellRate && MarketBTCEST >= betSize*1.025 && final < threshold{
 					// Follow Sell Trend
 					fmt.Printf("Sold Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
 					// if stocks on hand
