@@ -237,7 +237,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 				threshold := float64(0)
 				threshold = 0.4
 				minSellRate := float64(0.0005)
-				stopLossRate := float64(0.00059)
+				stopLossRate := float64(0.00057)
 				minRate := float64(0.00001)
 				betSize := float64(0)
 				betSize = 0.0006
