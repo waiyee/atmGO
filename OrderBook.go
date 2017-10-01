@@ -83,7 +83,10 @@ type LogMarketFinal struct {
 	USDT float64
 }
 
-
+type DBHourlyMarket struct {
+	MarketName string
+	Detail		db.HourMarketRate
+}
 
 func periodicGetOrderBook(t time.Time, markets []string)  {
 	wg := &sync.WaitGroup{}
@@ -173,13 +176,24 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 				err = f.Insert(&LogMarketFinal{LogTime:time.Now(), MarketName:markets[i],
 				Bid: orderBook.Buy[0].Rate, Ask: orderBook.Sell[0].Rate, Voi:VOI, Oir:OIR, SPREAD:Spread, Mpb: MPB, Final:final, USDT: thisSM.Markets["USDT-BTC"].Last})
 				thisSM.Lock.Unlock()
+
+				h := session.DB("v2").C("LogHourly").With(session)
 				BTCHourlyMarket[markets[i]].Lock.Lock()
-				BTCHourlyMarket[markets[i]].InsertLog(orderBook.Buy[0].Rate, orderBook.Sell[0].Rate, final)
-				fmt.Printf("Market Log: %v , Max A: %f, B: %f, F: %f, Min A: %f, B:%f, F: %f, Last A: %f, B: %f, F: %f \n", markets[i],
+				BTCHourlyMarket[markets[i]].HMR.InsertLog(orderBook.Buy[0].Rate, orderBook.Sell[0].Rate, final)
+
+
+				errH := h.Update(bson.M{"marketname":markets[i]}, &db.RateWithMarket{MarketName:markets[i], HMR:BTCHourlyMarket[markets[i]].HMR})
+
+				if errH != nil{
+					e := session.DB("v2").C("ErrorLog").With(session)
+					e.Insert(&db.ErrorLog{Description:"Update Hourly Market in DB", Error:errH.Error(), Time:time.Now()})
+				}
+
+				/*fmt.Printf("Market Log: %v , Max A: %f, B: %f, F: %f, Min A: %f, B:%f, F: %f, Last A: %f, B: %f, F: %f \n", markets[i],
 					BTCHourlyMarket[markets[i]].MaxAsk,BTCHourlyMarket[markets[i]].MaxBid,BTCHourlyMarket[markets[i]].MaxFinal,
 					BTCHourlyMarket[markets[i]].MinAsk,BTCHourlyMarket[markets[i]].MinBid,BTCHourlyMarket[markets[i]].MinFinal,
 					BTCHourlyMarket[markets[i]].LastAsk,BTCHourlyMarket[markets[i]].LastBid,BTCHourlyMarket[markets[i]].LastFinal,
-					)
+					)*/
 				BTCHourlyMarket[markets[i]].Lock.Unlock()
 				if err!= nil{
 					e := session.DB("v2").C("ErrorLog").With(session)

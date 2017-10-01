@@ -5,8 +5,18 @@ import (
 	"time"
 )
 
+type RateWithHMR struct{
+	Lock 	sync.Mutex
+	HMR		HourMarketRate
+}
+
+type RateWithMarket struct{
+	MarketName string
+	HMR 	HourMarketRate
+}
+
 type HourMarketRate struct{
-	Lock sync.Mutex
+
 	MinAsk 	float64
 	MaxAsk 	float64
 	LastAsk	float64
@@ -42,7 +52,7 @@ func (h *HourMarketRate) InsertLog(b float64, a float64, f float64){
 	h.LastBid = b
 	h.LastFinal = f
 	for i, v := range h.LogDetail{
-		if time.Now().Sub(v.LogTime).Minutes() > 60{
+		if time.Now().Sub(v.LogTime).Minutes() > 180{
 			h.LogDetail = append(h.LogDetail[:i], h.LogDetail[i+1:]...)
 		}
 	}

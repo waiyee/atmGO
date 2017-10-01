@@ -16,7 +16,7 @@ import (
 
 var mydb db.Mydbset
 var BTCMarkets []string
-var BTCHourlyMarket map[string]*db.HourMarketRate
+var BTCHourlyMarket map[string]*db.RateWithHMR
 
 // Receives the change in the number of goroutines
 var JobChannel = make(chan time.Time)
@@ -156,11 +156,11 @@ func  refreshWallet()(result bool){
  */
 func refreshMarkets(){
 	bAPI := bittrex.New(API_KEY, API_SECRET)
-
+	session := mydb.Session.Clone()
+	defer session.Close()
 	markets, err := bAPI.GetMarkets()
 	if err != nil {
-		session := mydb.Session.Clone()
-		defer session.Close()
+
 		e := session.DB("v2").C("ErrorLog").With(session)
 		e.Insert(&db.ErrorLog{Description:"refreshMarkets  - API", Error:err.Error(), Time:time.Now()})
 
@@ -170,8 +170,22 @@ func refreshMarkets(){
 	for _,v := range markets {
 		if v.BaseCurrency == "BTC"{
 			BTCMarkets = append(BTCMarkets, v.MarketName)
-			BTCHourlyMarket[v.MarketName] = &db.HourMarketRate{}
-			BTCHourlyMarket[v.MarketName].New()
+
+			var temp db.HourMarketRate
+			h := session.DB("v2").C("LogHourly").With(session)
+			err2 := h.Find(bson.M{"marketname":v.MarketName}).One(&temp)
+
+			if err2 != nil && err2.Error() == "not found"{
+				BTCHourlyMarket[v.MarketName] = &db.RateWithHMR{}
+				BTCHourlyMarket[v.MarketName].HMR.New()
+				h.Insert(&db.RateWithMarket{MarketName:v.MarketName, HMR:BTCHourlyMarket[v.MarketName].HMR})
+			} else if err2 == nil{
+				BTCHourlyMarket[v.MarketName] = &db.RateWithHMR{HMR:temp}
+			} else if err2 != nil{
+				e := session.DB("v2").C("ErrorLog").With(session)
+				e.Insert(&db.ErrorLog{Description:"Get Hourly Rate From DB", Error:err2.Error(), Time:time.Now()})
+			}
+
 			i++
 		}
 	}
@@ -184,7 +198,7 @@ func main() {
 	thisSM.Markets = make(map[string]bittrex.MarketSummary)
 	lastSM.Markets = make(map[string]bittrex.MarketSummary)
 	MMPB.Markets = make(map[string]float64)
-	BTCHourlyMarket = make(map[string]*db.HourMarketRate)
+	BTCHourlyMarket = make(map[string]*db.RateWithHMR)
 	// Bittrex client
 	//bAPI := bittrex.New(API_KEY, API_SECRET)
 
