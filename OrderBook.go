@@ -240,8 +240,9 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 				stopLossRate := float64(0.00059)
 				minRate := float64(0.00001)
 				betSize := float64(0)
-				betSize = minTotal
+				betSize = 0.0006
 
+				/*
 				if final > threshold {
 
 					if final > 0.4 {
@@ -254,6 +255,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 						betSize = 0.001
 					}
 				}
+				*/
 
 
 				/** Moving buy sell window **/
