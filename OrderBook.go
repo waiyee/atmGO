@@ -177,6 +177,10 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 				Bid: orderBook.Buy[0].Rate, Ask: orderBook.Sell[0].Rate, Voi:VOI, Oir:OIR, SPREAD:Spread, Mpb: MPB, Final:final, USDT: thisSM.Markets["USDT-BTC"].Last})
 				thisSM.Lock.Unlock()
 
+				//Capture Last Rate
+				var LastRate db.HourMarketRate
+				LastRate = BTCHourlyMarket[markets[i]].HMR
+
 				h := session.DB("v2").C("LogHourly").With(session)
 				BTCHourlyMarket[markets[i]].Lock.Lock()
 				BTCHourlyMarket[markets[i]].HMR.InsertLog(orderBook.Buy[0].Rate, orderBook.Sell[0].Rate, final)
@@ -228,6 +232,8 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					e.Insert(&db.ErrorLog{Description:"Get BTC Balance in DB", Error:err.Error(), Time:time.Now()})
 				}
 
+
+
 				threshold := float64(0)
 				threshold = 0.4
 				minSellRate := float64(0.0005)
@@ -249,8 +255,80 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					}
 				}
 
-				//fmt.Printf("Market %v Final %f MarketBTC %f minSellRate %f \n", markets[i], final, MarketBTCEST, minSellRate)
 
+				/** Moving buy sell window **/
+				BidRange := float64(0)
+				BidRange = BTCHourlyMarket[markets[i]].HMR.MaxBid - BTCHourlyMarket[markets[i]].HMR.MinBid
+				FinalRange := float64(0)
+				FinalRange = BTCHourlyMarket[markets[i]].HMR.MaxFinal - BTCHourlyMarket[markets[i]].HMR.MinFinal
+
+
+				if (orderBook.Buy[0].Rate < (BTCHourlyMarket[markets[i]].HMR.MinBid + BidRange/3)) &&
+					(final > BTCHourlyMarket[markets[i]].HMR.MaxFinal - FinalRange/3) &&
+					final > threshold && MarketBTCEST < minSellRate && BTCBalance.Available >= betSize && orderBook.Sell[0].Rate > minRate{
+					// Buy window
+					// buy signal
+					fmt.Printf("Bought Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
+					// place buy order at ask rate
+					rate := orderBook.Sell[0].Rate
+					quantity := (betSize * (1-fee)) / rate
+					tradeHelper.BuyHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bapi, mydb, "Buy Signal")
+				}else if (orderBook.Buy[0].Rate > BTCHourlyMarket[markets[i]].HMR.MaxBid - BidRange/3) &&
+					(final < BTCHourlyMarket[markets[i]].HMR.MinFinal + FinalRange/3) {
+					// Sell window
+					fmt.Printf("Sold Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
+					// if stocks on hand
+					// place sell order at bid rate
+					rate := orderBook.Buy[0].Rate
+					quantity := MarketBalance.Available
+					tradeHelper.SellHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bapi, mydb, "Sell Signal")
+
+				}else if final < -0.1 && MarketBTCEST >= minSellRate {
+					fmt.Printf("Sold Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
+					// if stocks on hand
+					// place sell order at bid rate
+					rate := orderBook.Buy[0].Rate
+					quantity := MarketBalance.Available
+					tradeHelper.SellHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bapi, mydb, "Sell Signal")
+
+				}else if MarketBTCEST >= minSellRate && MarketBTCEST < stopLossRate {
+					buyingOrder := []db.Orders{}
+					f := session.DB("v2").C("OwnOrderBook2").With(session)
+					f.Find(bson.M{"market":markets[i], "status" :"buying"}).All(&buyingOrder)
+					if len(buyingOrder) == 0 {
+						fmt.Printf("Sold Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i], VOI, OIR, MPB, Spread, final)
+						// if stocks on hand
+						// place sell order at bid rate
+						rate := orderBook.Buy[0].Rate
+						quantity := MarketBalance.Available
+						tradeHelper.SellHelper(rate, quantity, markets[i], BTCBalance.Available, final, *bapi, mydb, "Stop Loss")
+					}
+				}
+
+
+				if LastRate.LastBid > orderBook.Buy[0].Rate &&
+					LastRate.LastFinal > final {
+					// Follow Sell Trend
+					fmt.Printf("Sold Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
+					// if stocks on hand
+					// place sell order at bid rate
+					rate := orderBook.Buy[0].Rate
+					quantity := MarketBalance.Available
+					tradeHelper.SellHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bapi, mydb, "Sell Follow")
+
+				}else if LastRate.LastBid < orderBook.Buy[0].Rate &&
+					LastRate.LastFinal < final {
+					// Follow Buy Trend
+					fmt.Printf("Bought Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
+					// place buy order at ask rate
+					rate := orderBook.Sell[0].Rate
+					quantity := (betSize * (1-fee)) / rate
+					tradeHelper.BuyHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bapi, mydb, "Buy Follow")
+				}
+
+
+				//fmt.Printf("Market %v Final %f MarketBTC %f minSellRate %f \n", markets[i], final, MarketBTCEST, minSellRate)
+/*
 				if final > threshold && MarketBTCEST < minSellRate && BTCBalance.Available >= betSize && orderBook.Sell[0].Rate > minRate{
 					// buy signal
 					fmt.Printf("Bought Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
@@ -258,8 +336,8 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					rate := orderBook.Sell[0].Rate
 					quantity := (betSize * (1-fee)) / rate
 					tradeHelper.BuyHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bapi, mydb, "Buy Signal")
-
-				}else if final < -0.1 && MarketBTCEST >= minSellRate {
+				}
+				else if final < -0.1 && MarketBTCEST >= minSellRate {
 					fmt.Printf("Sold Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
 					// if stocks on hand
 					// place sell order at bid rate
@@ -282,7 +360,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 						tradeHelper.SellHelper(rate, quantity, markets[i], BTCBalance.Available, final, *bapi, mydb, "Stop Loss")
 					}
 				}
-
+*/
 
 			}
 			//defer wgm.Done()
