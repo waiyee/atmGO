@@ -317,7 +317,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					tradeHelper.SellHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bapi, mydb, "Sell Follow")
 
 				}else if LastRate.LastBid < orderBook.Buy[0].Rate &&
-					LastRate.LastFinal < final && final > threshold{
+					LastRate.LastFinal < final {
 					// Follow Buy Trend
 					fmt.Printf("Bought Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
 					// place buy order at ask rate
