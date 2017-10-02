@@ -272,16 +272,16 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					// place buy order at ask rate
 					rate := orderBook.Sell[0].Rate
 					quantity := (betSize * (1-fee)) / rate
-					tradeHelper.BuyHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bapi, mydb, "Buy Window")
+					tradeHelper.BuyHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bapi, mydb, "Buy Signal")
 				}else if (orderBook.Buy[0].Rate > BTCHourlyMarket[markets[i]].HMR.MaxBid - BidRange/3) &&
-					(final < BTCHourlyMarket[markets[i]].HMR.MinFinal + FinalRange/3) && MarketBTCEST >= minSellRate{
+					(final < BTCHourlyMarket[markets[i]].HMR.MinFinal + FinalRange/3) {
 					// Sell window
 					fmt.Printf("Sold Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
 					// if stocks on hand
 					// place sell order at bid rate
 					rate := orderBook.Buy[0].Rate
 					quantity := MarketBalance.Available
-					tradeHelper.SellHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bapi, mydb, "Sell Window")
+					tradeHelper.SellHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bapi, mydb, "Sell Signal")
 
 				}else if final < -0.1 && MarketBTCEST >= minSellRate {
 					fmt.Printf("Sold Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
@@ -304,7 +304,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 						tradeHelper.SellHelper(rate, quantity, markets[i], BTCBalance.Available, final, *bapi, mydb, "Stop Loss")
 					}
 				}else if LastRate.LastBid > orderBook.Buy[0].Rate &&
-					LastRate.LastFinal > final && MarketBTCEST >= minSellRate{
+					LastRate.LastFinal > final {
 					// Follow Sell Trend
 					fmt.Printf("Sold Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
 					// if stocks on hand
@@ -314,7 +314,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					tradeHelper.SellHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bapi, mydb, "Sell Follow")
 
 				}else if LastRate.LastBid < orderBook.Buy[0].Rate &&
-					LastRate.LastFinal < final && final > threshold && MarketBTCEST < minSellRate && BTCBalance.Available >= betSize && orderBook.Sell[0].Rate > minRate{
+					LastRate.LastFinal < final && final > threshold{
 					// Follow Buy Trend
 					fmt.Printf("Bought Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
 					// place buy order at ask rate
