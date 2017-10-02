@@ -219,7 +219,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 				}
 
 				thisSM.Lock.Lock()
-				MarketBTCEST := MarketBalance.Available * thisSM.Markets[markets[i]].Bid
+				MarketBTCEST := MarketBalance.Available * thisSM.Markets[markets[i]].Last
 				thisSM.Lock.Unlock()
 
 				var BTCBalance WalletBalance
@@ -276,7 +276,7 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					quantity := (betSize * (1-fee)) / rate
 					tradeHelper.BuyHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bapi, mydb, "Buy Window")
 				}else if (orderBook.Buy[0].Rate > BTCHourlyMarket[markets[i]].HMR.MaxBid - BidRange/6) &&
-					(final < BTCHourlyMarket[markets[i]].HMR.MinFinal + FinalRange/6) && MarketBTCEST >= betSize*1.025{
+					(final < BTCHourlyMarket[markets[i]].HMR.MinFinal + FinalRange/6) && MarketBTCEST >= betSize*1.02{
 					// Sell window
 					fmt.Printf("Sold Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
 					// if stocks on hand
