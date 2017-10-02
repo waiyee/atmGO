@@ -303,7 +303,10 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 						quantity := MarketBalance.Available
 						tradeHelper.SellHelper(rate, quantity, markets[i], BTCBalance.Available, final, *bapi, mydb, "Stop Loss")
 					}
-				}else if LastRate.LastBid > orderBook.Buy[0].Rate &&
+				}
+
+
+				if LastRate.LastBid > orderBook.Buy[0].Rate &&
 					LastRate.LastFinal > final {
 					// Follow Sell Trend
 					fmt.Printf("Sold Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
