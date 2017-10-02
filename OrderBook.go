@@ -273,8 +273,8 @@ func periodicGetOrderBook(t time.Time, markets []string)  {
 					rate := orderBook.Sell[0].Rate
 					quantity := (betSize * (1-fee)) / rate
 					tradeHelper.BuyHelper(rate,quantity, markets[i], BTCBalance.Available, final, *bapi, mydb, "Buy Window")
-				}else if (orderBook.Buy[0].Rate > BTCHourlyMarket[markets[i]].HMR.MaxBid - BidRange/6) &&
-					(final < BTCHourlyMarket[markets[i]].HMR.MinFinal + FinalRange/6) && MarketBTCEST >= minSellRate{
+				}else if (orderBook.Buy[0].Rate > BTCHourlyMarket[markets[i]].HMR.MaxBid - BidRange/3) &&
+					(final < BTCHourlyMarket[markets[i]].HMR.MinFinal + FinalRange/3) && MarketBTCEST >= minSellRate{
 					// Sell window
 					fmt.Printf("Sold Market: %v , VOI: %f, OIR: %f, MPB: %f, Spread: %f, Final : %f \n", markets[i],VOI,OIR,MPB,Spread,final)
 					// if stocks on hand
