@@ -103,7 +103,7 @@ func logWallet(){
 		err2 := d.Insert(&logForBTC{LogTime:time.Now(), EstBTC:estBTCRate})
 		if err2 != nil {
 			e := session.DB("v2").C("ErrorLog").With(session)
-			e.Insert(&db.ErrorLog{Description:"Insert EST BTC balance in DB", Error:err.Error(), Time:time.Now()})
+			e.Insert(&db.ErrorLog{Description:"Insert EST BTC balance in DB", Error:err2.Error(), Time:time.Now()})
 		}
 
 	}
@@ -176,7 +176,7 @@ func refreshMarkets(){
 
 			err2 := h.Find(bson.M{"marketname":v.MarketName}).One(&temp)
 
-			
+
 			if err2 != nil && err2.Error() == "not found"{
 				BTCHourlyMarket[v.MarketName] = &db.RateWithLock{}
 				BTCHourlyMarket[v.MarketName].HMR.New()
